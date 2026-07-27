@@ -1,5 +1,5 @@
 import { PriceGoApp } from '@/screens/PriceGoAppPremium';
 
-export default function HomeScreen() {
+export default function HomeRoute() {
   return <PriceGoApp />;
 }

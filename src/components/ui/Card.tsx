@@ -1,10 +1,10 @@
 import { COLORS, RADIUS, SHADOWS, SPACING } from '@/constants/design';
-import { StyleSheet, View } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 interface CardProps {
   children: React.ReactNode;
   variant?: 'elevated' | 'outlined' | 'filled';
-  style?: any;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function Card({ children, variant = 'outlined', style }: CardProps) {

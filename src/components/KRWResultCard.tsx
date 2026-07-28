@@ -4,12 +4,14 @@ import { Dimensions, StyleSheet, Text, View } from 'react-native';
 
 interface KRWResultCardProps {
   amount: string;
+  large?: boolean;
 }
 
-export function KRWResultCard({ amount }: KRWResultCardProps) {
+export function KRWResultCard({ amount, large = true }: KRWResultCardProps) {
   const screenWidth = Dimensions.get('window').width;
   // 금액이 길 경우 폰트 크기를 줄임
-  const fontSize = amount.length > 10 ? 44 : TYPOGRAPHY.amountKRW.fontSize;
+  const baseFontSize = large ? TYPOGRAPHY.amountKRW.fontSize : 44;
+  const fontSize = amount.length > 10 ? Math.min(baseFontSize, 44) : baseFontSize;
 
   return (
     <Card

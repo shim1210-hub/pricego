@@ -20,13 +20,17 @@ export function CountrySelectorPill({ selectedCode, onSelect }: CountrySelectorP
             <Text style={styles.flag}>{selected.flag}</Text>
             <Text style={styles.name}>{selected.name}</Text>
             <Text style={styles.currency}>·</Text>
-            <Text style={styles.currency}>{selected.currency}</Text>
+            <Text style={styles.currency}>{currencyLabel(selected.currency)}</Text>
             <Text style={styles.chevron}>▼</Text>
           </>
         )}
       </View>
     </Pressable>
   );
+}
+
+function currencyLabel(currency: string) {
+  return ({ VND: '베트남 동', JPY: '일본 엔', CNY: '중국 위안', USD: '미국 달러', KRW: '대한민국 원' } as Record<string, string>)[currency] ?? currency;
 }
 
 const styles = StyleSheet.create({

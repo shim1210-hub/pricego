@@ -3,16 +3,15 @@ import { StyleSheet, Text, View } from 'react-native';
 
 interface OfflineBannerProps {
   visible?: boolean;
+  message?: string;
 }
 
-export function OfflineBannerPremium({ visible = true }: OfflineBannerProps) {
-  if (!visible) {
-    return null;
-  }
+export function OfflineBannerPremium({ visible = true, message = '인터넷 연결이 없어 최근 환율을 사용하고 있어요.' }: OfflineBannerProps) {
+  if (!visible) return null;
 
   return (
     <View style={styles.banner}>
-      <Text style={styles.text}>✈ 오프라인 모드 · 저장된 환율을 사용 중</Text>
+      <Text style={styles.text}>{message}</Text>
     </View>
   );
 }

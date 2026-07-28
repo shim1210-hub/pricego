@@ -8,16 +8,6 @@ export default function RootLayout() {
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
-        <Stack.Screen name="home" />
-        <Stack.Screen name="onboarding" />
-        <Stack.Screen name="country-select" />
-        <Stack.Screen name="listening" />
-        <Stack.Screen name="result" />
-        <Stack.Screen name="recognition-check" />
-        <Stack.Screen name="manual-input" />
-        <Stack.Screen name="exchange-rate" />
-        <Stack.Screen name="show-amount" />
-        <Stack.Screen name="settings" />
       </Stack>
     </View>
   );

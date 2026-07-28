@@ -1,45 +1,23 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 export interface StorageLike {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
-}
-
-class MemoryStorage implements StorageLike {
-  private store = new Map<string, string>();
-
-  getItem(key: string) {
-    return this.store.get(key) ?? null;
-  }
-
-  setItem(key: string, value: string) {
-    this.store.set(key, value);
-  }
-
-  removeItem(key: string) {
-    this.store.delete(key);
-  }
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
 }
 
 export class LocalStorageService {
-  constructor(private storage: StorageLike = createBrowserStorage()) {}
+  constructor(private storage: StorageLike = AsyncStorage) {}
 
-  async getItem(key: string) {
+  getItem(key: string) {
     return this.storage.getItem(key);
   }
 
-  async setItem(key: string, value: string) {
-    this.storage.setItem(key, value);
+  setItem(key: string, value: string) {
+    return this.storage.setItem(key, value);
   }
 
-  async removeItem(key: string) {
-    this.storage.removeItem(key);
+  removeItem(key: string) {
+    return this.storage.removeItem(key);
   }
-}
-
-function createBrowserStorage(): StorageLike {
-  if (typeof globalThis !== 'undefined' && 'localStorage' in globalThis) {
-    return globalThis.localStorage as StorageLike;
-  }
-
-  return new MemoryStorage();
 }

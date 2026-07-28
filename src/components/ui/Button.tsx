@@ -1,5 +1,5 @@
 import { COLORS, RADIUS, SIZES, SPACING } from '@/constants/design';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 interface ButtonProps {
   label: string;
@@ -8,7 +8,7 @@ interface ButtonProps {
   size?: 'large' | 'medium' | 'small';
   disabled?: boolean;
   icon?: string;
-  style?: any;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function Button({

@@ -1,48 +1,94 @@
-import { COUNTRY_BY_CODE } from './exchange-rate.service';
-import type { RecognitionResult, SupportedCountryCode } from './types';
+import {
+  ExpoSpeechRecognitionModule,
+  type ExpoSpeechRecognitionErrorCode,
+} from 'expo-speech-recognition';
+
+import type { SpeechRecognitionResult, SupportedCountryCode } from './types';
+
+export class SpeechRecognitionError extends Error {
+  constructor(
+    message: string,
+    public readonly code: ExpoSpeechRecognitionErrorCode | 'permission-denied' | 'empty-result',
+  ) {
+    super(message);
+    this.name = 'SpeechRecognitionError';
+  }
+}
 
 export class SpeechRecognitionService {
-  async recognizeMock(countryCode: SupportedCountryCode): Promise<RecognitionResult> {
-    const country = COUNTRY_BY_CODE[countryCode];
-    const sampleText = this.getMockText(countryCode);
-    const parsedAmount = this.getMockAmount(countryCode);
+  private activeSubscriptions: Array<{ remove: () => void }> = [];
 
-    return {
-      recognizedText: sampleText,
-      parsedAmount,
-      currency: country.currency,
-      confidence: 0.92,
-      needsConfirmation: parsedAmount >= 300000 && countryCode === 'VN',
-    };
+  async recognize(countryCode: SupportedCountryCode): Promise<SpeechRecognitionResult> {
+    const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!permission.granted) {
+      throw new SpeechRecognitionError('마이크 권한이 필요합니다.', 'permission-denied');
+    }
+
+    if (!ExpoSpeechRecognitionModule.isRecognitionAvailable()) {
+      throw new SpeechRecognitionError('음성인식 서비스를 사용할 수 없습니다.', 'service-not-allowed');
+    }
+
+    const language = countryCode === 'US' ? 'en-US' : 'ko-KR';
+    return new Promise<SpeechRecognitionResult>((resolve, reject) => {
+      let transcript = '';
+      let confidence = -1;
+      let settled = false;
+
+      const finish = (callback: () => void) => {
+        if (settled) return;
+        settled = true;
+        this.removeSubscriptions();
+        callback();
+      };
+
+      this.activeSubscriptions = [
+        ExpoSpeechRecognitionModule.addListener('result', (event) => {
+          const result = event.results[0];
+          if (result?.transcript) {
+            transcript = result.transcript;
+            confidence = result.confidence;
+          }
+          if (event.isFinal) {
+            if (!transcript.trim()) {
+              finish(() => reject(new SpeechRecognitionError('음성이 감지되지 않았습니다.', 'empty-result')));
+              return;
+            }
+            finish(() => resolve({
+              recognizedText: transcript,
+              confidence: confidence >= 0 ? confidence : 0,
+            }));
+          }
+        }),
+        ExpoSpeechRecognitionModule.addListener('error', (event) => {
+          finish(() => reject(new SpeechRecognitionError(event.message || '음성인식에 실패했습니다.', event.error)));
+        }),
+        ExpoSpeechRecognitionModule.addListener('end', () => {
+          if (!transcript) {
+            finish(() => reject(new SpeechRecognitionError('음성이 감지되지 않았습니다.', 'empty-result')));
+          }
+        }),
+      ];
+
+      try {
+        ExpoSpeechRecognitionModule.start({
+          lang: language,
+          interimResults: true,
+          maxAlternatives: 3,
+          contextualStrings: ['동', '만 동', '달러', '엔', '위안', 'VND', 'USD', 'JPY', 'CNY'],
+        });
+      } catch (error) {
+        finish(() => reject(new SpeechRecognitionError(error instanceof Error ? error.message : '음성인식을 시작할 수 없습니다.', 'unknown')));
+      }
+    });
   }
 
-  private getMockText(countryCode: SupportedCountryCode) {
-    switch (countryCode) {
-      case 'VN':
-        return 'ba trăm nghìn đồng';
-      case 'JP':
-        return 'さんびゃくえん';
-      case 'CN':
-        return '三百元';
-      case 'US':
-        return 'three hundred dollars';
-      default:
-        return 'three hundred dollars';
-    }
+  cancel() {
+    ExpoSpeechRecognitionModule.abort();
+    this.removeSubscriptions();
   }
 
-  private getMockAmount(countryCode: SupportedCountryCode) {
-    switch (countryCode) {
-      case 'VN':
-        return 300000;
-      case 'JP':
-        return 3000;
-      case 'CN':
-        return 300;
-      case 'US':
-        return 300;
-      default:
-        return 300;
-    }
+  private removeSubscriptions() {
+    this.activeSubscriptions.forEach((subscription) => subscription.remove());
+    this.activeSubscriptions = [];
   }
 }

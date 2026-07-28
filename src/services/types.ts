@@ -12,12 +12,9 @@ export interface CountryOption {
   exampleAmount: number;
 }
 
-export interface RecognitionResult {
+export interface SpeechRecognitionResult {
   recognizedText: string;
-  parsedAmount: number;
-  currency: CurrencyCode;
   confidence: number;
-  needsConfirmation: boolean;
 }
 
 export interface PriceParseResult {
@@ -25,11 +22,17 @@ export interface PriceParseResult {
   displayText: string;
 }
 
+export type PriceParseFailureReason = 'PRICE_NOT_FOUND' | 'CURRENCY_NOT_FOUND';
+
+export type PriceParseOutcome =
+  | { success: true; result: PriceParseResult }
+  | { success: false; reason: PriceParseFailureReason };
+
 export interface ExchangeRateSnapshot {
   currency: CurrencyCode;
   rateToKrw: number;
   updatedAt: string;
-  source: 'cached' | 'mock';
+  source: 'live' | 'cached' | 'fallback';
 }
 
 export interface AppSettings {

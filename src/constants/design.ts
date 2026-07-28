@@ -66,7 +66,7 @@ export const TYPOGRAPHY = {
     lineHeight: 24,
   },
   body: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '500' as const,
     lineHeight: 24,
   },
@@ -81,12 +81,12 @@ export const TYPOGRAPHY = {
     lineHeight: 20,
   },
   caption: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '500' as const,
     lineHeight: 18,
   },
   captionSmall: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '500' as const,
     lineHeight: 16,
   },
@@ -130,7 +130,7 @@ export const SIZES = {
   buttonHeight: 52,
   buttonHeightSmall: 40,
   iconButtonSize: 44,
-  micButtonSize: 140,
+  micButtonSize: 170,
   tabBarHeight: 72,
   headerHeight: 56,
 } as const;

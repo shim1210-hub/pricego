@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View, Vibration } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AudioWavePremium } from '@/components/AudioWavePremium';
@@ -18,16 +18,19 @@ import { SettingRow } from '@/components/ui/SettingRow';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import { COLORS, SPACING, TYPOGRAPHY } from '@/constants/design';
+import { AppSettingsService, DEFAULT_APP_SETTINGS } from '@/services/app-settings.service';
 import { COUNTRY_BY_CODE, COUNTRY_OPTIONS, ExchangeRateService } from '@/services/exchange-rate.service';
 import { PriceParserService } from '@/services/price-parser.service';
-import { SpeechRecognitionService } from '@/services/speech-recognition.service';
-import { LocalStorageService } from '@/services/storage';
-import type { AppSettings, CurrencyCode, SupportedCountryCode } from '@/services/types';
+import { SpeechRecognitionError, SpeechRecognitionService } from '@/services/speech-recognition.service';
+import type { AppSettings, CurrencyCode, ExchangeRateSnapshot, SupportedCountryCode } from '@/services/types';
 
-const storage = new LocalStorageService();
+const settingsService = new AppSettingsService();
 const exchangeRateService = new ExchangeRateService();
 const speechService = new SpeechRecognitionService();
 const parserService = new PriceParserService();
+
+type CountryDisplay = { code: SupportedCountryCode; name: string; flag: string; currency: CurrencyCode };
+type RecognitionState = { amount: number; text: string; currency: CurrencyCode };
 
 type ScreenName =
   | 'onboarding'
@@ -41,34 +44,27 @@ type ScreenName =
   | 'show-amount'
   | 'settings';
 
-const defaultSettings: AppSettings = {
-  selectedCountryCode: 'VN',
-  selectedCurrency: 'VND',
-  offlineFirst: true,
-  autoUpdate: true,
-  vibrationOn: true,
-  largeResultText: true,
-};
-
 export function PriceGoApp() {
   const [screen, setScreen] = useState<ScreenName>('onboarding');
-  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
-  const [recognition, setRecognition] = useState<{ amount: number; text: string; currency: CurrencyCode } | null>(null);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
+  const [recognition, setRecognition] = useState<RecognitionState | null>(null);
   const [manualInput, setManualInput] = useState('300000');
   const [displayAmount, setDisplayAmount] = useState('300,000');
   const [activeTab, setActiveTab] = useState<'home' | 'input' | 'settings'>('home');
+  const [rateVersion, setRateVersion] = useState(0);
+  const isMountedRef = useRef(true);
+  const listeningRef = useRef(false);
+
+  useEffect(() => () => {
+    isMountedRef.current = false;
+    if (listeningRef.current) speechService.cancel();
+  }, []);
 
   useEffect(() => {
     const loadSettings = async () => {
-      const stored = await storage.getItem('pricego-settings');
-      if (!stored) {
-        await storage.setItem('pricego-settings', JSON.stringify(defaultSettings));
-        setSettings(defaultSettings);
-        setScreen('onboarding');
-        return;
-      }
-
-      const parsed = JSON.parse(stored) as AppSettings;
+      const parsed = await settingsService.load();
+      await exchangeRateService.initialize(parsed.autoUpdate);
+      if (!isMountedRef.current) return;
       setSettings(parsed);
       setScreen(parsed.selectedCountryCode ? 'home' : 'onboarding');
     };
@@ -77,27 +73,57 @@ export function PriceGoApp() {
   }, []);
 
   const country = COUNTRY_BY_CODE[settings.selectedCountryCode] ?? COUNTRY_BY_CODE.VN;
-  const exchangeRate = exchangeRateService.getRate(country.currency);
+  const exchangeRate = useMemo(() => exchangeRateService.getRate(country.currency), [country.currency, rateVersion]);
   const krwValue = useMemo(() => exchangeRateService.calculateKrw(Number(manualInput) || 0, country.currency), [country.currency, manualInput]);
 
   const saveSettings = async (next: AppSettings) => {
     setSettings(next);
-    await storage.setItem('pricego-settings', JSON.stringify(next));
+    await settingsService.save(next);
   };
 
   const startListening = async () => {
+    if (!isMountedRef.current || listeningRef.current) return;
+    listeningRef.current = true;
+    if (settings.vibrationOn) Vibration.vibrate(30);
     setScreen('listening');
-    const result = await speechService.recognizeMock(settings.selectedCountryCode);
-    const parsed = parserService.parse(result.recognizedText, result.currency);
-    const amount = parsed?.amount ?? result.parsedAmount;
-    setRecognition({ amount, text: result.recognizedText, currency: result.currency });
-    setTimeout(() => {
-      if (result.needsConfirmation) {
+    try {
+      const result = await speechService.recognize(settings.selectedCountryCode);
+      if (result.confidence > 0 && result.confidence < 0.35) {
+        if (!isMountedRef.current) return;
+        setScreen('home');
+        showRetryAlert('잘 듣지 못했어요. 조금 더 크게 다시 말해주세요.', startListening);
+        return;
+      }
+      const currency = COUNTRY_BY_CODE[settings.selectedCountryCode].currency;
+      const parsed = parserService.parseDetailed(result.recognizedText, currency);
+      if (!parsed.success) {
+        if (!isMountedRef.current) return;
+        setScreen('home');
+        showRetryAlert(
+          parsed.reason === 'CURRENCY_NOT_FOUND'
+            ? "금액과 함께 '동', '엔', '위안', '달러'처럼 말해주세요."
+            : '가격을 찾지 못했어요. 다시 말씀해주세요.',
+          startListening,
+        );
+        return;
+      }
+
+      if (!isMountedRef.current) return;
+      setRecognition({ amount: parsed.result.amount, text: result.recognizedText, currency });
+      if (settings.vibrationOn) Vibration.vibrate(30);
+      if (parsed.result.amount >= 300000 && currency === 'VND') {
         setScreen('recognition-check');
       } else {
         setScreen('result');
       }
-    }, 1200);
+    } catch (error) {
+      if (error instanceof SpeechRecognitionError && error.code === 'aborted') return;
+      if (!isMountedRef.current) return;
+      setScreen('home');
+      showRetryAlert(getSpeechErrorMessage(error), startListening);
+    } finally {
+      listeningRef.current = false;
+    }
   };
 
   const confirmAmount = (candidate: number) => {
@@ -161,7 +187,11 @@ export function PriceGoApp() {
         return (
           <ListeningScreenPremium
             country={country}
-            onStop={() => setScreen('home')}
+            onStop={() => {
+              speechService.cancel();
+              listeningRef.current = false;
+              setScreen('home');
+            }}
             onNavigate={(tab) => {
               setActiveTab(tab);
               if (tab === 'input') {
@@ -181,6 +211,7 @@ export function PriceGoApp() {
             recognition={recognition}
             country={country}
             exchangeRate={exchangeRate}
+            largeResultText={settings.largeResultText}
             onReplay={() => startListening()}
             onShowAmount={() => setScreen('show-amount')}
             onManual={() => setScreen('manual-input')}
@@ -261,13 +292,13 @@ export function PriceGoApp() {
           />
         );
       case 'show-amount':
-        return (
+        return recognition ? (
           <ShowAmountScreenPremium
             country={country}
-            amount={recognition?.amount ?? 300000}
+            amount={recognition.amount}
             onBack={() => setScreen('result')}
           />
-        );
+        ) : null;
       case 'settings':
         return (
           <SettingsScreenPremium
@@ -278,6 +309,9 @@ export function PriceGoApp() {
             onToggle={(key, value) => {
               const next = { ...settings, [key]: value } as AppSettings;
               saveSettings(next);
+              if (key === 'autoUpdate' && value) {
+                void exchangeRateService.refreshLiveRates().then(() => setRateVersion((version) => version + 1)).catch(() => undefined);
+              }
             }}
             onNavigate={(tab) => {
               setActiveTab(tab);
@@ -369,7 +403,7 @@ function CountrySelectScreenPremium({
                 ]}>
                 <Text style={styles.countryFlag}>{country.flag}</Text>
                 <Text style={styles.countryName}>{country.name}</Text>
-                <Text style={styles.countryCurrency}>{country.currency}</Text>
+                <Text style={styles.countryCurrency}>{currencyLabel(country.currency)}</Text>
                 {active && <Text style={styles.checkmark}>✓</Text>}
               </Pressable>
             );
@@ -393,8 +427,8 @@ function HomeScreenPremium({
   onNavigate,
   activeTab,
 }: {
-  country: any;
-  exchangeRate: any;
+  country: CountryDisplay;
+  exchangeRate: ExchangeRateSnapshot;
   onMicPress: () => void;
   onNavigate: (tab: 'home' | 'input' | 'settings') => void;
   activeTab: 'home' | 'input' | 'settings';
@@ -409,7 +443,10 @@ function HomeScreenPremium({
         />
 
         <ScrollView contentContainerStyle={styles.pagePadding}>
-          <OfflineBannerPremium visible={false} />
+          <OfflineBannerPremium
+            visible={exchangeRate.source !== 'live'}
+            message={exchangeRate.source === 'fallback' ? '환율 정보를 불러오지 못해 기본 환율을 사용하고 있어요.' : undefined}
+          />
 
           <CountrySelectorPill
             selectedCode={country.code}
@@ -447,7 +484,7 @@ function ListeningScreenPremium({
   onNavigate,
   activeTab,
 }: {
-  country: any;
+  country: CountryDisplay;
   onStop: () => void;
   onNavigate: (tab: 'home' | 'input' | 'settings') => void;
   activeTab: 'home' | 'input' | 'settings';
@@ -485,22 +522,25 @@ function ResultScreenPremium({
   recognition,
   country,
   exchangeRate,
+  largeResultText,
   onReplay,
   onShowAmount,
   onManual,
   onNavigate,
   activeTab,
 }: {
-  recognition: any;
-  country: any;
-  exchangeRate: any;
+  recognition: RecognitionState | null;
+  country: CountryDisplay;
+  exchangeRate: ExchangeRateSnapshot;
+  largeResultText: boolean;
   onReplay: () => void;
   onShowAmount: () => void;
   onManual: () => void;
   onNavigate: (tab: 'home' | 'input' | 'settings') => void;
   activeTab: 'home' | 'input' | 'settings';
 }) {
-  const localAmount = recognition?.amount ?? 300000;
+  if (!recognition) return null;
+  const localAmount = recognition.amount;
   const krwAmount = exchangeRateService.formatKrw(localAmount * exchangeRate.rateToKrw);
 
   return (
@@ -528,6 +568,7 @@ function ResultScreenPremium({
 
           <KRWResultCard
             amount={krwAmount.replace('약 ₩', '').replace(' ', '')}
+            large={largeResultText}
           />
 
           <Card variant="filled" style={styles.detailsCard}>
@@ -537,7 +578,7 @@ function ResultScreenPremium({
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>적용 환율</Text>
-              <Text style={styles.detailValue}>{`1,000 ${country.currency} ≈ ${Math.round(exchangeRate.rateToKrw * 1000)} KRW`}</Text>
+          <Text style={styles.detailValue}>{`1,000 ${currencyLabel(country.currency)} ≈ ${Math.round(exchangeRate.rateToKrw * 1000)}원`}</Text>
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>환율 업데이트</Text>
@@ -584,15 +625,16 @@ function RecognitionCheckScreenPremium({
   onNavigate,
   activeTab,
 }: {
-  country: any;
-  recognition: any;
+  country: CountryDisplay;
+  recognition: RecognitionState | null;
   onConfirm: (candidate: number) => void;
   onReplay: () => void;
   onManual: () => void;
   onNavigate: (tab: 'home' | 'input' | 'settings') => void;
   activeTab: 'home' | 'input' | 'settings';
 }) {
-  const amount = recognition?.amount ?? 300000;
+  if (!recognition) return null;
+  const amount = recognition.amount;
   const candidates = [amount, Math.floor(amount / 10), amount * 10];
 
   return (
@@ -617,7 +659,7 @@ function RecognitionCheckScreenPremium({
           {candidates.map((candidate, idx) => (
             <Button
               key={candidate}
-              label={`${new Intl.NumberFormat('ko-KR').format(candidate)} ${country.currency}`}
+              label={`${new Intl.NumberFormat('ko-KR').format(candidate)} ${currencyLabel(country.currency)}`}
               onPress={() => onConfirm(candidate)}
               variant={idx === 0 ? 'primary' : 'secondary'}
               style={styles.fullWidth}
@@ -658,7 +700,7 @@ function ManualInputScreenPremium({
   onNavigate,
   activeTab,
 }: {
-  country: any;
+  country: CountryDisplay;
   amount: string;
   displayAmount: string;
   krwAmount: string;
@@ -684,7 +726,7 @@ function ManualInputScreenPremium({
           <Card variant="outlined">
             <View style={styles.amountInputContainer}>
               <Text style={styles.amountInput}>{displayAmount}</Text>
-              <Text style={styles.amountCurrency}>{country.currency}</Text>
+            <Text style={styles.amountCurrency}>{currencyLabel(country.currency)}</Text>
             </View>
           </Card>
 
@@ -714,8 +756,8 @@ function ExchangeRateScreenPremium({
   onNavigate,
   activeTab,
 }: {
-  country: any;
-  exchangeRate: any;
+  country: CountryDisplay;
+  exchangeRate: ExchangeRateSnapshot;
   onBack: () => void;
   onNavigate: (tab: 'home' | 'input' | 'settings') => void;
   activeTab: 'home' | 'input' | 'settings';
@@ -734,19 +776,19 @@ function ExchangeRateScreenPremium({
             <View style={styles.rateMainContent}>
               <View style={styles.ratePair}>
                 <Text style={styles.rateFlag}>{country.flag}</Text>
-                <Text style={styles.rateCurrency}>{country.currency}</Text>
+                <Text style={styles.rateCurrency}>{currencyLabel(country.currency)}</Text>
               </View>
               <Text style={styles.rateArrow}>→</Text>
               <View style={styles.ratePair}>
-                <Text style={styles.rateCurrency}>KRW</Text>
+              <Text style={styles.rateCurrency}>대한민국 원</Text>
                 <Text style={styles.rateFlag}>🇰🇷</Text>
               </View>
             </View>
 
             <View style={styles.spacer} />
 
-            <Text style={styles.rateNumber}>1,000 {country.currency}</Text>
-            <Text style={styles.rateResult}>≈ {Math.round(exchangeRate.rateToKrw * 1000)} KRW</Text>
+            <Text style={styles.rateNumber}>1,000 {currencyLabel(country.currency)}</Text>
+            <Text style={styles.rateResult}>≈ {Math.round(exchangeRate.rateToKrw * 1000)}원</Text>
 
             <View style={styles.spacer} />
 
@@ -780,7 +822,7 @@ function ShowAmountScreenPremium({
   amount,
   onBack,
 }: {
-  country: any;
+  country: CountryDisplay;
   amount: number;
   onBack: () => void;
 }) {
@@ -793,7 +835,7 @@ function ShowAmountScreenPremium({
       </Pressable>
       <View style={styles.showAmountContainer}>
         <Text style={styles.showAmountText}>
-          {new Intl.NumberFormat('ko-KR').format(amount)} {country.currency}
+          {new Intl.NumberFormat('ko-KR').format(amount)} {currencyLabel(country.currency)}
         </Text>
       </View>
     </SafeAreaView>
@@ -833,7 +875,7 @@ function SettingsScreenPremium({
             <SettingRow
               icon={selectedCountry?.flag}
               title="여행 국가"
-              value={`${selectedCountry?.name} · ${selectedCountry?.currency}`}
+              value={`${selectedCountry?.name} · ${selectedCountry ? currencyLabel(selectedCountry.currency) : ''}`}
               onPress={onCountryPress}
               showChevron
             />
@@ -842,7 +884,7 @@ function SettingsScreenPremium({
           <View style={styles.settingsSection}>
             <SettingRow
               title="기준 통화"
-              value="대한민국 원 (KRW)"
+              value="대한민국 원"
               onPress={() => {}}
               showChevron
             />
@@ -851,7 +893,7 @@ function SettingsScreenPremium({
           <View style={styles.settingsSection}>
             <SettingRow
               title="음성 인식"
-              subtitle="오프라인 우선"
+              subtitle="인터넷이 없어도 사용"
               value={
                 <ToggleSwitch
                   value={settings.offlineFirst}
@@ -862,7 +904,7 @@ function SettingsScreenPremium({
 
             <SettingRow
               title="환율"
-              subtitle="자동 업데이트"
+              subtitle="앱을 열 때 최신 환율 확인"
               value={
                 <ToggleSwitch
                   value={settings.autoUpdate}
@@ -872,9 +914,9 @@ function SettingsScreenPremium({
             />
 
             <SettingRow
-              title="환율 업데이트"
-              subtitle="마지막 업데이트"
-              value="09:30"
+              title="환율 정보"
+              subtitle="최근 환율 보기"
+              value="확인"
               onPress={onRatePress}
               showChevron
             />
@@ -913,6 +955,29 @@ function SettingsScreenPremium({
       </View>
     </SafeAreaView>
   );
+}
+
+function showRetryAlert(message: string, retry: () => void) {
+  Alert.alert('다시 해볼까요?', message, [
+    { text: '다시 말하기', onPress: retry },
+    { text: '닫기', style: 'cancel' },
+  ]);
+}
+
+function getSpeechErrorMessage(error: unknown) {
+  if (error instanceof SpeechRecognitionError) {
+    if (error.code === 'permission-denied' || error.code === 'not-allowed') {
+      return '음성을 사용하려면 마이크 권한이 필요합니다.';
+    }
+    if (error.code === 'no-speech' || error.code === 'speech-timeout' || error.code === 'empty-result') {
+      return '잘 듣지 못했어요. 다시 말해주세요.';
+    }
+  }
+  return '잘 듣지 못했어요. 다시 말해주세요.';
+}
+
+function currencyLabel(currency: CurrencyCode) {
+  return ({ VND: '베트남 동', JPY: '일본 엔', CNY: '중국 위안', USD: '미국 달러', KRW: '대한민국 원' } as Record<CurrencyCode, string>)[currency];
 }
 
 const styles = StyleSheet.create({
@@ -969,7 +1034,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   helperText: {
-    ...TYPOGRAPHY.caption,
+    ...TYPOGRAPHY.bodyMedium,
     color: COLORS.textSecondary,
     textAlign: 'center',
     marginTop: SPACING.lg,
@@ -1000,12 +1065,12 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   countryName: {
-    ...TYPOGRAPHY.bodySmall,
+    ...TYPOGRAPHY.body,
     color: COLORS.textPrimary,
     fontWeight: '600' as const,
   },
   countryCurrency: {
-    ...TYPOGRAPHY.captionSmall,
+    ...TYPOGRAPHY.bodySmall,
     color: COLORS.textSecondary,
   },
   checkmark: {
@@ -1032,13 +1097,13 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   micPromptTitle: {
-    ...TYPOGRAPHY.bodySmall,
+    ...TYPOGRAPHY.subheading,
     color: COLORS.textPrimary,
     fontWeight: '600' as const,
     marginTop: SPACING.lg,
   },
   micPromptDesc: {
-    ...TYPOGRAPHY.caption,
+    ...TYPOGRAPHY.bodyMedium,
     color: COLORS.textSecondary,
     textAlign: 'center',
     marginTop: SPACING.sm,

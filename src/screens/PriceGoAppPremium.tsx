@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View, Vibration } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View, Vibration, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AudioWavePremium } from '@/components/AudioWavePremium';
@@ -52,6 +52,7 @@ export function PriceGoApp() {
   const [displayAmount, setDisplayAmount] = useState('300,000');
   const [activeTab, setActiveTab] = useState<'home' | 'input' | 'settings'>('home');
   const [rateVersion, setRateVersion] = useState(0);
+  const [isRefreshingRates, setIsRefreshingRates] = useState(false);
   const isMountedRef = useRef(true);
   const listeningRef = useRef(false);
 
@@ -63,7 +64,7 @@ export function PriceGoApp() {
   useEffect(() => {
     const loadSettings = async () => {
       const parsed = await settingsService.load();
-      await exchangeRateService.initialize(parsed.autoUpdate);
+      await exchangeRateService.initialize();
       if (!isMountedRef.current) return;
       setSettings(parsed);
       setScreen(parsed.selectedCountryCode ? 'home' : 'onboarding');
@@ -141,6 +142,20 @@ export function PriceGoApp() {
     setScreen('home');
   };
 
+  const refreshRates = async () => {
+    if (isRefreshingRates) return;
+    setIsRefreshingRates(true);
+    try {
+      await exchangeRateService.refreshLiveRates();
+      setRateVersion((version) => version + 1);
+      Alert.alert('환율이 업데이트됐어요.', '최신 환율을 확인했습니다.');
+    } catch {
+      Alert.alert('인터넷 연결을 확인해주세요.', '기존 환율은 그대로 사용할 수 있어요.');
+    } finally {
+      setIsRefreshingRates(false);
+    }
+  };
+
   const handleManualInputChange = (value: string) => {
     const next = `${manualInput}${value}`.replace(/^0+(?=\d)/, '');
     setManualInput(next || '0');
@@ -151,6 +166,11 @@ export function PriceGoApp() {
     const next = manualInput.slice(0, -1);
     setManualInput(next || '0');
     setDisplayAmount(new Intl.NumberFormat('ko-KR').format(Number(next || '0')));
+  };
+
+  const resetManualInput = () => {
+    setManualInput('0');
+    setDisplayAmount('0');
   };
 
   const renderScreen = () => {
@@ -169,6 +189,7 @@ export function PriceGoApp() {
           <HomeScreenPremium
             country={country}
             exchangeRate={exchangeRate}
+            onCountrySelect={handleCountrySelect}
             onMicPress={startListening}
             onNavigate={(tab) => {
               setActiveTab(tab);
@@ -253,12 +274,14 @@ export function PriceGoApp() {
         return (
           <ManualInputScreenPremium
             country={country}
+            onCountrySelect={handleCountrySelect}
             amount={manualInput}
             displayAmount={displayAmount}
             krwAmount={exchangeRateService.formatKrw(krwValue)}
             onChange={handleManualInputChange}
             onBackspace={handleManualBackspace}
-            onDone={() => setScreen('home')}
+            onReset={resetManualInput}
+            onBack={() => setScreen('home')}
             onNavigate={(tab) => {
               setActiveTab(tab);
               if (tab === 'input') {
@@ -277,6 +300,8 @@ export function PriceGoApp() {
           <ExchangeRateScreenPremium
             country={country}
             exchangeRate={exchangeRate}
+            onRefresh={refreshRates}
+            refreshing={isRefreshingRates}
             onBack={() => setScreen('settings')}
             onNavigate={(tab) => {
               setActiveTab(tab);
@@ -309,9 +334,6 @@ export function PriceGoApp() {
             onToggle={(key, value) => {
               const next = { ...settings, [key]: value } as AppSettings;
               saveSettings(next);
-              if (key === 'autoUpdate' && value) {
-                void exchangeRateService.refreshLiveRates().then(() => setRateVersion((version) => version + 1)).catch(() => undefined);
-              }
             }}
             onNavigate={(tab) => {
               setActiveTab(tab);
@@ -340,7 +362,7 @@ export function PriceGoApp() {
 
 function OnboardingScreenPremium({ onStart }: { onStart: () => void }) {
   return (
-    <SafeAreaView style={styles.fullScreen}>
+    <SafeAreaView edges={['top']} style={styles.fullScreen}>
       <ScrollView
         contentContainerStyle={styles.centerContainer}
         scrollEnabled={false}>
@@ -379,7 +401,7 @@ function CountrySelectScreenPremium({
   onSelect: (code: SupportedCountryCode) => void;
 }) {
   return (
-    <SafeAreaView style={styles.fullScreen}>
+    <SafeAreaView edges={['top']} style={styles.fullScreen}>
       <ScreenHeader
         title="어디를 여행 중인가요?"
         showBack
@@ -423,18 +445,23 @@ function CountrySelectScreenPremium({
 function HomeScreenPremium({
   country,
   exchangeRate,
+  onCountrySelect,
   onMicPress,
   onNavigate,
   activeTab,
 }: {
   country: CountryDisplay;
   exchangeRate: ExchangeRateSnapshot;
+  onCountrySelect: (code: SupportedCountryCode) => void;
   onMicPress: () => void;
   onNavigate: (tab: 'home' | 'input' | 'settings') => void;
   activeTab: 'home' | 'input' | 'settings';
 }) {
+  const { width, height } = useWindowDimensions();
+  const compact = height < 700;
+  const micSize = Math.min(180, Math.max(150, width * 0.42));
   return (
-    <SafeAreaView style={styles.fullScreen}>
+    <SafeAreaView edges={['top']} style={styles.fullScreen}>
       <View style={styles.screenWithNav}>
         <ScreenHeader
           title="PriceGo"
@@ -442,7 +469,7 @@ function HomeScreenPremium({
           onRightPress={() => onNavigate('settings')}
         />
 
-        <ScrollView contentContainerStyle={styles.pagePadding}>
+        <ScrollView contentContainerStyle={[styles.pagePadding, { paddingBottom: compact ? SPACING.lg : SPACING.xl }]}>
           <OfflineBannerPremium
             visible={exchangeRate.source !== 'live'}
             message={exchangeRate.source === 'fallback' ? '환율 정보를 불러오지 못해 기본 환율을 사용하고 있어요.' : undefined}
@@ -450,20 +477,20 @@ function HomeScreenPremium({
 
           <CountrySelectorPill
             selectedCode={country.code}
-            onSelect={() => {}}
+            onSelect={(code) => void onCountrySelect(code as SupportedCountryCode)}
           />
 
-          <View style={styles.spacer} />
+          <View style={compact ? styles.compactSpacer : styles.spacer} />
 
           <View style={styles.centerContent}>
-            <MicButtonPremium onPress={onMicPress} />
+            <MicButtonPremium onPress={onMicPress} size={micSize} />
             <Text style={styles.micPromptTitle}>가격을 들어볼게요</Text>
             <Text style={styles.micPromptDesc}>
               버튼을 누르고{'\n'}상대방이 말하는 가격을 들려주세요.
             </Text>
           </View>
 
-          <View style={styles.spacer} />
+          <View style={compact ? styles.compactSpacer : styles.spacer} />
 
           <ExchangeRateCard
             rateText={`1,000 ${country.currency} ≈ ${Math.round(exchangeRate.rateToKrw * 1000)} KRW`}
@@ -490,7 +517,7 @@ function ListeningScreenPremium({
   activeTab: 'home' | 'input' | 'settings';
 }) {
   return (
-    <SafeAreaView style={styles.fullScreen}>
+    <SafeAreaView edges={['top']} style={styles.fullScreen}>
       <View style={styles.screenWithNav}>
         <ScreenHeader title="PriceGo" />
 
@@ -544,7 +571,7 @@ function ResultScreenPremium({
   const krwAmount = exchangeRateService.formatKrw(localAmount * exchangeRate.rateToKrw);
 
   return (
-    <SafeAreaView style={styles.fullScreen}>
+    <SafeAreaView edges={['top']} style={styles.fullScreen}>
       <View style={styles.screenWithNav}>
         <ScreenHeader
           title="PriceGo"
@@ -638,7 +665,7 @@ function RecognitionCheckScreenPremium({
   const candidates = [amount, Math.floor(amount / 10), amount * 10];
 
   return (
-    <SafeAreaView style={styles.fullScreen}>
+    <SafeAreaView edges={['top']} style={styles.fullScreen}>
       <View style={styles.screenWithNav}>
         <ScreenHeader title="" showBack onBackPress={onReplay} />
 
@@ -691,34 +718,42 @@ function RecognitionCheckScreenPremium({
 
 function ManualInputScreenPremium({
   country,
+  onCountrySelect,
   amount,
   displayAmount,
   krwAmount,
   onChange,
   onBackspace,
-  onDone,
+  onReset,
+  onBack,
   onNavigate,
   activeTab,
 }: {
   country: CountryDisplay;
+  onCountrySelect: (code: SupportedCountryCode) => void;
   amount: string;
   displayAmount: string;
   krwAmount: string;
   onChange: (value: string) => void;
   onBackspace: () => void;
-  onDone: () => void;
+  onReset: () => void;
+  onBack: () => void;
   onNavigate: (tab: 'home' | 'input' | 'settings') => void;
   activeTab: 'home' | 'input' | 'settings';
 }) {
+  const { height } = useWindowDimensions();
+  const compact = height < 700;
   return (
-    <SafeAreaView style={styles.fullScreen}>
+    <SafeAreaView edges={['top']} style={styles.fullScreen}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.screenWithNav}>
-        <ScreenHeader title="" showBack onBackPress={onDone} />
+        <ScreenHeader title="" showBack onBackPress={onBack} />
 
-        <ScrollView contentContainerStyle={styles.pagePadding}>
+        <ScrollView
+          contentContainerStyle={[styles.pagePadding, compact && styles.compactPagePadding]}
+          keyboardShouldPersistTaps="handled">
           <CountrySelectorPill
             selectedCode={country.code}
-            onSelect={() => {}}
+            onSelect={(code) => void onCountrySelect(code as SupportedCountryCode)}
           />
 
           <Text style={styles.heading}>금액을 입력하세요</Text>
@@ -737,8 +772,8 @@ function ManualInputScreenPremium({
           <NumberPadPremium onPress={onChange} onBackspace={onBackspace} />
 
           <Button
-            label="완료"
-            onPress={onDone}
+            label="새로 입력"
+            onPress={onReset}
             style={styles.fullWidth}
           />
         </ScrollView>
@@ -752,18 +787,22 @@ function ManualInputScreenPremium({
 function ExchangeRateScreenPremium({
   country,
   exchangeRate,
+  onRefresh,
+  refreshing,
   onBack,
   onNavigate,
   activeTab,
 }: {
   country: CountryDisplay;
   exchangeRate: ExchangeRateSnapshot;
+  onRefresh: () => void;
+  refreshing: boolean;
   onBack: () => void;
   onNavigate: (tab: 'home' | 'input' | 'settings') => void;
   activeTab: 'home' | 'input' | 'settings';
 }) {
   return (
-    <SafeAreaView style={styles.fullScreen}>
+    <SafeAreaView edges={['top']} style={styles.fullScreen}>
       <View style={styles.screenWithNav}>
         <ScreenHeader
           title="환율 정보"
@@ -792,7 +831,7 @@ function ExchangeRateScreenPremium({
 
             <View style={styles.spacer} />
 
-            <Text style={styles.rateTime}>최근 업데이트</Text>
+            <Text style={styles.rateTime}>{exchangeRate.source === 'fallback' ? '환율 기준' : '환율 기준 시각'}</Text>
             <Text style={styles.rateTimeValue}>{exchangeRate.updatedAt}</Text>
 
             <View style={styles.spacer} />
@@ -805,8 +844,9 @@ function ExchangeRateScreenPremium({
           </Text>
 
           <Button
-            label="지금 업데이트"
-            onPress={() => {}}
+            label={refreshing ? '환율 확인 중...' : '지금 업데이트'}
+            onPress={onRefresh}
+            disabled={refreshing}
             style={styles.fullWidth}
           />
         </ScrollView>
@@ -827,7 +867,7 @@ function ShowAmountScreenPremium({
   onBack: () => void;
 }) {
   return (
-    <SafeAreaView style={styles.fullScreen}>
+    <SafeAreaView edges={['top']} style={styles.fullScreen}>
       <Pressable
         onPress={onBack}
         style={styles.showAmountBackButton}>
@@ -855,14 +895,14 @@ function SettingsScreenPremium({
   onBack: () => void;
   onCountryPress: () => void;
   onRatePress: () => void;
-  onToggle: (key: 'offlineFirst' | 'autoUpdate' | 'vibrationOn' | 'largeResultText', value: boolean) => void;
+  onToggle: (key: 'vibrationOn' | 'largeResultText', value: boolean) => void;
   onNavigate: (tab: 'home' | 'input' | 'settings') => void;
   activeTab: 'home' | 'input' | 'settings';
 }) {
   const selectedCountry = COUNTRY_OPTIONS.find((c) => c.code === settings.selectedCountryCode);
 
   return (
-    <SafeAreaView style={styles.fullScreen}>
+    <SafeAreaView edges={['top']} style={styles.fullScreen}>
       <View style={styles.screenWithNav}>
         <ScreenHeader
           title="설정"
@@ -882,37 +922,6 @@ function SettingsScreenPremium({
           </View>
 
           <View style={styles.settingsSection}>
-            <SettingRow
-              title="기준 통화"
-              value="대한민국 원"
-              onPress={() => {}}
-              showChevron
-            />
-          </View>
-
-          <View style={styles.settingsSection}>
-            <SettingRow
-              title="음성 인식"
-              subtitle="인터넷이 없어도 사용"
-              value={
-                <ToggleSwitch
-                  value={settings.offlineFirst}
-                  onValueChange={(v) => onToggle('offlineFirst', v)}
-                />
-              }
-            />
-
-            <SettingRow
-              title="환율"
-              subtitle="앱을 열 때 최신 환율 확인"
-              value={
-                <ToggleSwitch
-                  value={settings.autoUpdate}
-                  onValueChange={(v) => onToggle('autoUpdate', v)}
-                />
-              }
-            />
-
             <SettingRow
               title="환율 정보"
               subtitle="최근 환율 보기"
@@ -995,8 +1004,14 @@ const styles = StyleSheet.create({
   },
   pagePadding: {
     paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xl,
     flexGrow: 1,
+  },
+  compactPagePadding: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.md,
   },
   centerContainer: {
     flex: 1,
@@ -1080,6 +1095,9 @@ const styles = StyleSheet.create({
   },
   spacer: {
     height: SPACING.xl,
+  },
+  compactSpacer: {
+    height: SPACING.md,
   },
   centerContent: {
     alignItems: 'center',

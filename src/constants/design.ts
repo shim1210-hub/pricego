@@ -132,5 +132,5 @@ export const SIZES = {
   iconButtonSize: 44,
   micButtonSize: 170,
   tabBarHeight: 72,
-  headerHeight: 56,
+  headerHeight: 52,
 } as const;

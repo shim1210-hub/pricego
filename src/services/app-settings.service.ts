@@ -4,8 +4,6 @@ import type { AppSettings, SupportedCountryCode } from './types';
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   selectedCountryCode: 'VN',
   selectedCurrency: 'VND',
-  offlineFirst: true,
-  autoUpdate: true,
   vibrationOn: true,
   largeResultText: true,
 };
@@ -42,8 +40,6 @@ export class AppSettingsService {
     return (
       ['US', 'JP', 'CN', 'VN'].includes(settings.selectedCountryCode as SupportedCountryCode) &&
       typeof settings.selectedCurrency === 'string' &&
-      typeof settings.offlineFirst === 'boolean' &&
-      typeof settings.autoUpdate === 'boolean' &&
       typeof settings.vibrationOn === 'boolean' &&
       typeof settings.largeResultText === 'boolean'
     );

@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   wrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: SPACING.xl,
+    marginVertical: SPACING.lg,
   },
   outerRing: {
     position: 'absolute',

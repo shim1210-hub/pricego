@@ -1,6 +1,6 @@
 import { Card } from '@/components/ui/Card';
 import { COLORS, SPACING, TYPOGRAPHY } from '@/constants/design';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 interface KRWResultCardProps {
   amount: string;
@@ -8,10 +8,11 @@ interface KRWResultCardProps {
 }
 
 export function KRWResultCard({ amount, large = true }: KRWResultCardProps) {
-  const screenWidth = Dimensions.get('window').width;
+  const { width: screenWidth } = useWindowDimensions();
   // 금액이 길 경우 폰트 크기를 줄임
   const baseFontSize = large ? TYPOGRAPHY.amountKRW.fontSize : 44;
-  const fontSize = amount.length > 10 ? Math.min(baseFontSize, 44) : baseFontSize;
+  const widthLimit = Math.max(30, screenWidth - 96);
+  const fontSize = Math.min(amount.length > 10 ? 44 : baseFontSize, Math.max(36, widthLimit / Math.max(amount.length * 0.58, 1)));
 
   return (
     <Card
@@ -33,7 +34,8 @@ export function KRWResultCard({ amount, large = true }: KRWResultCardProps) {
             },
           ]}
           numberOfLines={1}
-          adjustsFontSizeToFit>
+          adjustsFontSizeToFit
+          minimumFontScale={0.65}>
           ₩{amount}
         </Text>
       </View>

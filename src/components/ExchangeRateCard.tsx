@@ -14,7 +14,7 @@ export function ExchangeRateCard({ rateText, updatedAt, supportOffline = true }:
       <View style={styles.container}>
         <Text style={styles.rate}>{rateText}</Text>
         <View style={styles.meta}>
-          <Text style={styles.metaText}>최근 업데이트 {updatedAt}</Text>
+          <Text style={styles.metaText}>마지막 환율 확인: {updatedAt}</Text>
           {supportOffline && (
             <Text style={styles.metaText}>● 오프라인에서도 사용 가능</Text>
           )}

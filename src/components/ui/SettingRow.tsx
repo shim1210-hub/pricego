@@ -71,12 +71,14 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
   right: {
+    maxWidth: '46%',
     alignItems: 'flex-end',
     gap: SPACING.sm,
   },
   value: {
     ...TYPOGRAPHY.bodySmall,
     color: COLORS.textSecondary,
+    textAlign: 'right',
   },
   chevron: {
     fontSize: 24,

@@ -25,17 +25,15 @@ export class ExchangeRateService {
   private initializePromise: Promise<void> | null = null;
   private readonly storage = new LocalStorageService();
 
-  async initialize(autoUpdate = true): Promise<void> {
+  async initialize(): Promise<void> {
     if (this.initializePromise) return this.initializePromise;
 
     this.initializePromise = (async () => {
       await this.loadCachedRates();
-      if (autoUpdate) {
-        try {
-          await this.refreshLiveRates();
-        } catch {
-          // Cached rates or fallback rates remain available when the network fails.
-        }
+      try {
+        await this.refreshLiveRates();
+      } catch {
+        // Cached rates or fallback rates remain available when the network fails.
       }
     })();
 

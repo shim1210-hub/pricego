@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     gap: SPACING.md,
-    marginVertical: SPACING.xl,
+    marginVertical: SPACING.lg,
   },
   row: {
     flexDirection: 'row',
@@ -44,7 +44,8 @@ const styles = StyleSheet.create({
   },
   key: {
     flex: 1,
-    paddingVertical: SPACING.lg,
+    minHeight: 58,
+    paddingVertical: SPACING.sm,
     borderRadius: RADIUS.md,
     backgroundColor: COLORS.surface,
     borderWidth: 1,

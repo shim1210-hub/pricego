@@ -1,25 +1,26 @@
 import { COLORS, SIZES, SPACING, TYPOGRAPHY } from '@/constants/design';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Props { activeTab: 'home' | 'input' | 'settings'; onTabChange: (tab: Props['activeTab']) => void; }
 
 export function BottomNavigationPremium({ activeTab, onTabChange }: Props) {
+  const insets = useSafeAreaInsets();
   const tabs = [
     { key: 'home', label: '홈', icon: '🎤' },
     { key: 'input', label: '직접 입력', icon: '123' },
     { key: 'settings', label: '설정', icon: '⚙' },
   ] as const;
-  return <SafeAreaView edges={['bottom']} style={styles.safeArea}><View style={styles.container}>
+  return <View style={[styles.safeArea, { paddingBottom: insets.bottom }]}><View style={styles.container}>
     {tabs.map((tab) => <Pressable key={tab.key} onPress={() => onTabChange(tab.key)} style={styles.tab}>
       <Text style={styles.icon}>{tab.icon}</Text><Text style={[styles.label, activeTab === tab.key && styles.activeLabel]}>{tab.label}</Text>
     </Pressable>)}
-  </View></SafeAreaView>;
+  </View></View>;
 }
 
 const styles = StyleSheet.create({
   safeArea: { backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.border },
-  container: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: SPACING.md, height: SIZES.tabBarHeight },
+  container: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: SPACING.sm, minHeight: SIZES.tabBarHeight },
   tab: { alignItems: 'center', justifyContent: 'center', gap: SPACING.xs, flex: 1 },
   icon: { fontSize: 22 },
   label: { ...TYPOGRAPHY.bodySmall, color: COLORS.textSecondary },

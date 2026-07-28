@@ -38,8 +38,6 @@ export interface ExchangeRateSnapshot {
 export interface AppSettings {
   selectedCountryCode: SupportedCountryCode;
   selectedCurrency: CurrencyCode;
-  offlineFirst: boolean;
-  autoUpdate: boolean;
   vibrationOn: boolean;
   largeResultText: boolean;
 }

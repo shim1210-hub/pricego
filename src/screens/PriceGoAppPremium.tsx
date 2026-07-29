@@ -801,7 +801,7 @@ function ManualInputScreenPremium({
           <Text style={[styles.heading, compact && styles.compactManualHeading]}>금액을 입력하세요</Text>
 
           <Card variant="outlined" style={compact && styles.compactManualCard}>
-            <View style={styles.amountInputContainer}>
+            <View style={[styles.amountInputContainer, compact && styles.compactAmountInputContainer]}>
               <Text style={styles.amountInput}>{displayAmount}</Text>
             <Text style={styles.amountCurrency}>{currencyLabel(country.currency)}</Text>
             </View>
@@ -1266,11 +1266,11 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   compactManualCard: {
-    paddingVertical: SPACING.sm,
+    paddingVertical: 6,
   },
   compactManualResetButton: {
-    marginTop: SPACING.xs,
-    marginBottom: SPACING.sm,
+    marginTop: 0,
+    marginBottom: 0,
   },
   buttonHalf: {
     flex: 1,
@@ -1287,6 +1287,9 @@ const styles = StyleSheet.create({
   amountInputContainer: {
     alignItems: 'center',
     gap: SPACING.sm,
+  },
+  compactAmountInputContainer: {
+    gap: SPACING.xs,
   },
   amountInput: {
     ...TYPOGRAPHY.amountLocal,

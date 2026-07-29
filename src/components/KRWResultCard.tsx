@@ -50,8 +50,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     paddingVertical: SPACING.xl,
   },
-  compactCard: { paddingVertical: SPACING.md },
-  compactContainer: { gap: SPACING.xs },
+  compactCard: { paddingVertical: 8 },
+  compactContainer: { gap: 2 },
   container: {
     alignItems: 'center',
     gap: SPACING.md,

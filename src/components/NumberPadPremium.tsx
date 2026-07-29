@@ -39,12 +39,12 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     marginVertical: SPACING.md,
   },
-  compactContainer: { gap: SPACING.sm, marginVertical: SPACING.sm },
+  compactContainer: { gap: SPACING.xs, marginVertical: SPACING.xs },
   row: {
     flexDirection: 'row',
     gap: SPACING.sm,
   },
-  compactRow: { gap: SPACING.sm },
+  compactRow: { gap: SPACING.xs },
   key: {
     flex: 1,
     minHeight: 58,

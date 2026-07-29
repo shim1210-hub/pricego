@@ -32,6 +32,7 @@ export class SpeechRecognitionService {
     return new Promise<SpeechRecognitionResult>((resolve, reject) => {
       let transcript = '';
       let confidence = -1;
+      let alternatives: Array<{ transcript: string; confidence: number }> = [];
       let settled = false;
 
       const finish = (callback: () => void) => {
@@ -47,6 +48,9 @@ export class SpeechRecognitionService {
           if (result?.transcript) {
             transcript = result.transcript;
             confidence = result.confidence;
+            alternatives = event.results
+              .filter((item) => item.transcript?.trim())
+              .map((item) => ({ transcript: item.transcript, confidence: item.confidence }));
           }
           if (event.isFinal) {
             if (!transcript.trim()) {
@@ -56,6 +60,7 @@ export class SpeechRecognitionService {
             finish(() => resolve({
               recognizedText: transcript,
               confidence: confidence >= 0 ? confidence : 0,
+              alternatives,
             }));
           }
         }),

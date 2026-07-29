@@ -15,6 +15,7 @@ export interface CountryOption {
 export interface SpeechRecognitionResult {
   recognizedText: string;
   confidence: number;
+  alternatives?: Array<{ transcript: string; confidence: number }>;
 }
 
 export interface PriceParseResult {

@@ -96,7 +96,13 @@ export function PriceGoApp() {
         return;
       }
       const currency = COUNTRY_BY_CODE[settings.selectedCountryCode].currency;
-      const parsed = parserService.parseDetailed(result.recognizedText, currency);
+      const recognitionCandidates = [{ text: result.recognizedText, confidence: result.confidence }, ...(result.alternatives ?? []).map((item) => ({ text: item.transcript, confidence: item.confidence }))];
+      const parsedCandidates = recognitionCandidates
+        .map((candidate) => ({ candidate, parsed: parserService.parseDetailed(candidate.text, currency) }))
+        .filter((item) => item.parsed.success)
+        .sort((a, b) => b.candidate.confidence - a.candidate.confidence);
+      const selected = parsedCandidates[0];
+      const parsed = selected?.parsed ?? parserService.parseDetailed(result.recognizedText, currency);
       if (!parsed.success) {
         if (!isMountedRef.current) return;
         setScreen('home');
@@ -110,7 +116,7 @@ export function PriceGoApp() {
       }
 
       if (!isMountedRef.current) return;
-      setRecognition({ amount: parsed.result.amount, text: result.recognizedText, currency });
+      setRecognition({ amount: parsed.result.amount, text: selected?.candidate.text ?? result.recognizedText, currency });
       if (settings.vibrationOn) Vibration.vibrate(30);
       if (parsed.result.amount >= 300000 && currency === 'VND') {
         setScreen('recognition-check');
@@ -769,7 +775,7 @@ function ManualInputScreenPremium({
             amount={krwAmount.replace('약 ₩', '').replace(' ', '')}
           />
 
-          <NumberPadPremium onPress={onChange} onBackspace={onBackspace} />
+          <NumberPadPremium compact={compact} onPress={onChange} onBackspace={onBackspace} />
 
           <Button
             label="새로 입력"

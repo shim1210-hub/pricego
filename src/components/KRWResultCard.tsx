@@ -5,9 +5,10 @@ import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 interface KRWResultCardProps {
   amount: string;
   large?: boolean;
+  compact?: boolean;
 }
 
-export function KRWResultCard({ amount, large = true }: KRWResultCardProps) {
+export function KRWResultCard({ amount, large = true, compact = false }: KRWResultCardProps) {
   const { width: screenWidth } = useWindowDimensions();
   // 금액이 길 경우 폰트 크기를 줄임
   const baseFontSize = large ? TYPOGRAPHY.amountKRW.fontSize : 44;
@@ -19,6 +20,7 @@ export function KRWResultCard({ amount, large = true }: KRWResultCardProps) {
       variant="elevated"
       style={[
         styles.card,
+        compact && styles.compactCard,
         {
           backgroundColor: COLORS.primary,
         },
@@ -48,6 +50,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     paddingVertical: SPACING.xl,
   },
+  compactCard: { paddingVertical: SPACING.md },
   container: {
     alignItems: 'center',
     gap: SPACING.md,

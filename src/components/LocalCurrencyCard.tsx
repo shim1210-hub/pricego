@@ -6,11 +6,12 @@ interface LocalCurrencyCardProps {
   amount: string;
   currency: string;
   flag: string;
+  compact?: boolean;
 }
 
-export function LocalCurrencyCard({ amount, currency, flag }: LocalCurrencyCardProps) {
+export function LocalCurrencyCard({ amount, currency, flag, compact = false }: LocalCurrencyCardProps) {
   return (
-    <Card variant="outlined">
+    <Card variant="outlined" style={compact && styles.compactCard}>
       <View style={styles.container}>
         <View style={styles.left}>
           <Text style={styles.label}>현지 통화</Text>
@@ -26,6 +27,9 @@ export function LocalCurrencyCard({ amount, currency, flag }: LocalCurrencyCardP
 }
 
 const styles = StyleSheet.create({
+  compactCard: {
+    paddingVertical: SPACING.sm,
+  },
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',

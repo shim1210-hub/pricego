@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View, Vibration, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 
 import { AudioWavePremium } from '@/components/AudioWavePremium';
 import { BottomNavigationPremium } from '@/components/BottomNavigationPremium';
@@ -72,6 +73,16 @@ export function PriceGoApp() {
 
     loadSettings();
   }, []);
+
+  useEffect(() => {
+    if (screen === 'manual-input') {
+      setActiveTab('input');
+    } else if (screen === 'settings' || screen === 'exchange-rate') {
+      setActiveTab('settings');
+    } else if (screen === 'home' || screen === 'listening' || screen === 'result' || screen === 'recognition-check') {
+      setActiveTab('home');
+    }
+  }, [screen]);
 
   const country = COUNTRY_BY_CODE[settings.selectedCountryCode] ?? COUNTRY_BY_CODE.VN;
   const exchangeRate = useMemo(() => exchangeRateService.getRate(country.currency), [country.currency, rateVersion]);
@@ -145,7 +156,6 @@ export function PriceGoApp() {
       selectedCurrency: COUNTRY_BY_CODE[code].currency,
     };
     await saveSettings(nextSettings);
-    setScreen('home');
   };
 
   const refreshRates = async () => {
@@ -179,6 +189,11 @@ export function PriceGoApp() {
     setDisplayAmount('0');
   };
 
+  const handleManualCountrySelect = async (code: SupportedCountryCode) => {
+    await handleCountrySelect(code);
+    resetManualInput();
+  };
+
   const renderScreen = () => {
     switch (screen) {
       case 'onboarding':
@@ -187,7 +202,10 @@ export function PriceGoApp() {
         return (
           <CountrySelectScreenPremium
             selectedCode={settings.selectedCountryCode}
-            onSelect={handleCountrySelect}
+            onSelect={async (code) => {
+              await handleCountrySelect(code);
+              setScreen(activeTab === 'settings' ? 'settings' : 'home');
+            }}
           />
         );
       case 'home':
@@ -280,7 +298,7 @@ export function PriceGoApp() {
         return (
           <ManualInputScreenPremium
             country={country}
-            onCountrySelect={handleCountrySelect}
+            onCountrySelect={handleManualCountrySelect}
             amount={manualInput}
             displayAmount={displayAmount}
             krwAmount={exchangeRateService.formatKrw(krwValue)}
@@ -464,8 +482,10 @@ function HomeScreenPremium({
   activeTab: 'home' | 'input' | 'settings';
 }) {
   const { width, height } = useWindowDimensions();
-  const compact = height < 700;
-  const micSize = Math.min(180, Math.max(150, width * 0.42));
+  const compact = height < 900;
+  const micSize = compact
+    ? Math.min(160, Math.max(150, width * 0.4))
+    : Math.min(180, Math.max(150, width * 0.42));
   return (
     <SafeAreaView edges={['top']} style={styles.fullScreen}>
       <View style={styles.screenWithNav}>
@@ -475,7 +495,9 @@ function HomeScreenPremium({
           onRightPress={() => onNavigate('settings')}
         />
 
-        <ScrollView contentContainerStyle={[styles.pagePadding, { paddingBottom: compact ? SPACING.lg : SPACING.xl }]}>
+        <ScrollView
+          contentContainerStyle={[styles.homePagePadding, compact && styles.compactHomePagePadding]}
+          showsVerticalScrollIndicator={false}>
           <OfflineBannerPremium
             visible={exchangeRate.source !== 'live'}
             message={exchangeRate.source === 'fallback' ? '환율 정보를 불러오지 못해 기본 환율을 사용하고 있어요.' : undefined}
@@ -484,16 +506,24 @@ function HomeScreenPremium({
           <CountrySelectorPill
             selectedCode={country.code}
             onSelect={(code) => void onCountrySelect(code as SupportedCountryCode)}
+            compact={compact}
           />
 
           <View style={compact ? styles.compactSpacer : styles.spacer} />
 
-          <View style={styles.centerContent}>
+          <View style={styles.homeCenterContent}>
             <MicButtonPremium onPress={onMicPress} size={micSize} />
-            <Text style={styles.micPromptTitle}>가격을 들어볼게요</Text>
-            <Text style={styles.micPromptDesc}>
+            <Text style={[styles.micPromptTitle, compact && styles.compactMicPromptTitle]}>가격을 들어볼게요</Text>
+            <Text style={[styles.micPromptDesc, compact && styles.compactMicPromptDesc]}>
               버튼을 누르고{'\n'}상대방이 말하는 가격을 들려주세요.
             </Text>
+            <Button
+              label="직접 입력"
+              onPress={() => onNavigate('input')}
+              variant="secondary"
+              size="medium"
+              style={styles.homeManualButton}
+            />
           </View>
 
           <View style={compact ? styles.compactSpacer : styles.spacer} />
@@ -502,6 +532,7 @@ function HomeScreenPremium({
             rateText={`1,000 ${country.currency} ≈ ${Math.round(exchangeRate.rateToKrw * 1000)} KRW`}
             updatedAt={exchangeRate.updatedAt}
             supportOffline
+            compact={compact}
           />
         </ScrollView>
 
@@ -586,7 +617,7 @@ function ResultScreenPremium({
           rightIcon="✓"
         />
 
-        <ScrollView contentContainerStyle={styles.pagePadding}>
+        <ScrollView contentContainerStyle={styles.resultPagePadding} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <StatusChip label="인식 완료" type="success" icon="✓" />
 
           <View style={styles.spacer} />
@@ -595,27 +626,31 @@ function ResultScreenPremium({
             amount={new Intl.NumberFormat('ko-KR').format(localAmount)}
             currency={country.currency}
             flag={country.flag}
+            compact
           />
 
-          <Text style={styles.arrowDown}>↓</Text>
+          <Text style={styles.resultArrowDown}>↓</Text>
 
           <KRWResultCard
             amount={krwAmount.replace('약 ₩', '').replace(' ', '')}
             large={largeResultText}
+            compact
           />
 
-          <Card variant="filled" style={styles.detailsCard}>
+          <Card variant="filled" style={styles.resultDetailsCard}>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>들은 내용</Text>
               <Text style={styles.detailValue}>{recognition?.text ?? 'ba trăm nghìn đồng'}</Text>
             </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>적용 환율</Text>
-          <Text style={styles.detailValue}>{`1,000 ${currencyLabel(country.currency)} ≈ ${Math.round(exchangeRate.rateToKrw * 1000)}원`}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>환율 업데이트</Text>
-              <Text style={styles.detailValue}>{exchangeRate.updatedAt}</Text>
+            <View style={styles.resultMetaRow}>
+              <View style={styles.resultMetaColumn}>
+                <Text style={styles.detailLabel}>적용 환율</Text>
+                <Text style={styles.detailValue}>{`1,000 ${currencyLabel(country.currency)} ≈ ${Math.round(exchangeRate.rateToKrw * 1000)}원`}</Text>
+              </View>
+              <View style={styles.resultMetaColumn}>
+                <Text style={styles.detailLabel}>환율 업데이트</Text>
+                <Text style={styles.detailValue}>{exchangeRate.updatedAt}</Text>
+              </View>
             </View>
           </Card>
 
@@ -627,7 +662,7 @@ function ResultScreenPremium({
             style={styles.fullWidth}
           />
 
-          <View style={styles.buttonRow}>
+          <View style={styles.resultButtonRow}>
             <Button
               label="직접 수정"
               onPress={onManual}
@@ -748,7 +783,7 @@ function ManualInputScreenPremium({
   activeTab: 'home' | 'input' | 'settings';
 }) {
   const { height } = useWindowDimensions();
-  const compact = height < 700;
+  const compact = height < 900;
   return (
     <SafeAreaView edges={['top']} style={styles.fullScreen}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.screenWithNav}>
@@ -760,11 +795,12 @@ function ManualInputScreenPremium({
           <CountrySelectorPill
             selectedCode={country.code}
             onSelect={(code) => void onCountrySelect(code as SupportedCountryCode)}
+            compact={compact}
           />
 
-          <Text style={styles.heading}>금액을 입력하세요</Text>
+          <Text style={[styles.heading, compact && styles.compactManualHeading]}>금액을 입력하세요</Text>
 
-          <Card variant="outlined">
+          <Card variant="outlined" style={compact && styles.compactManualCard}>
             <View style={styles.amountInputContainer}>
               <Text style={styles.amountInput}>{displayAmount}</Text>
             <Text style={styles.amountCurrency}>{currencyLabel(country.currency)}</Text>
@@ -773,6 +809,7 @@ function ManualInputScreenPremium({
 
           <KRWResultCard
             amount={krwAmount.replace('약 ₩', '').replace(' ', '')}
+            compact={compact}
           />
 
           <NumberPadPremium compact={compact} onPress={onChange} onBackspace={onBackspace} />
@@ -780,7 +817,7 @@ function ManualInputScreenPremium({
           <Button
             label="새로 입력"
             onPress={onReset}
-            style={styles.fullWidth}
+            style={[styles.fullWidth, compact && styles.compactManualResetButton]}
           />
         </ScrollView>
 
@@ -961,7 +998,7 @@ function SettingsScreenPremium({
           <View style={styles.settingsSection}>
             <SettingRow
               title="정보"
-              value="PriceGo v1.0.0"
+              value={`PriceGo v${Constants.expoConfig?.version ?? '1.0.1'}`}
             />
           </View>
         </ScrollView>
@@ -1012,6 +1049,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.md,
     paddingBottom: SPACING.xl,
+    flexGrow: 1,
+  },
+  homePagePadding: {
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.md,
+    flexGrow: 1,
+  },
+  compactHomePagePadding: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.sm,
+  },
+  resultPagePadding: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.md,
     flexGrow: 1,
   },
   compactPagePadding: {
@@ -1110,6 +1164,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flex: 1,
   },
+  homeCenterContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   subtitle: {
     ...TYPOGRAPHY.bodySmall,
     color: COLORS.textSecondary,
@@ -1126,10 +1184,21 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     marginTop: SPACING.lg,
   },
+  compactMicPromptTitle: {
+    marginTop: SPACING.md,
+  },
   micPromptDesc: {
     ...TYPOGRAPHY.bodyMedium,
     color: COLORS.textSecondary,
     textAlign: 'center',
+    marginTop: SPACING.sm,
+  },
+  compactMicPromptDesc: {
+    marginTop: SPACING.xs,
+  },
+  homeManualButton: {
+    alignSelf: 'center',
+    minWidth: 160,
     marginTop: SPACING.sm,
   },
   listeningTitle: {
@@ -1150,8 +1219,19 @@ const styles = StyleSheet.create({
   detailsCard: {
     marginTop: SPACING.xl,
   },
+  resultArrowDown: {
+    fontSize: 24,
+    lineHeight: 28,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginVertical: SPACING.xs,
+  },
+  resultDetailsCard: {
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.sm,
+  },
   detailRow: {
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.sm,
   },
   detailLabel: {
     ...TYPOGRAPHY.captionSmall,
@@ -1165,6 +1245,28 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     gap: SPACING.md,
+  },
+  resultButtonRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  resultMetaRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  resultMetaColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  compactManualHeading: {
+    marginBottom: SPACING.xs,
+  },
+  compactManualCard: {
+    paddingVertical: SPACING.sm,
+  },
+  compactManualResetButton: {
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.sm,
   },
   buttonHalf: {
     flex: 1,

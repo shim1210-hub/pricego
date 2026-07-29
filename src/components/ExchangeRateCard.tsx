@@ -6,12 +6,13 @@ interface ExchangeRateCardProps {
   rateText: string;
   updatedAt: string;
   supportOffline?: boolean;
+  compact?: boolean;
 }
 
-export function ExchangeRateCard({ rateText, updatedAt, supportOffline = true }: ExchangeRateCardProps) {
+export function ExchangeRateCard({ rateText, updatedAt, supportOffline = true, compact = false }: ExchangeRateCardProps) {
   return (
-    <Card variant="filled">
-      <View style={styles.container}>
+    <Card variant="filled" style={compact && styles.compactCard}>
+      <View style={[styles.container, compact && styles.compactContainer]}>
         <Text style={styles.rate}>{rateText}</Text>
         <View style={styles.meta}>
           <Text style={styles.metaText}>마지막 환율 확인: {updatedAt}</Text>
@@ -25,8 +26,14 @@ export function ExchangeRateCard({ rateText, updatedAt, supportOffline = true }:
 }
 
 const styles = StyleSheet.create({
+  compactCard: {
+    paddingVertical: SPACING.sm,
+  },
   container: {
     gap: SPACING.md,
+  },
+  compactContainer: {
+    gap: SPACING.xs,
   },
   rate: {
     ...TYPOGRAPHY.bodySmall,

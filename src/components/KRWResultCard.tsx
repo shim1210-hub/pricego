@@ -25,7 +25,7 @@ export function KRWResultCard({ amount, large = true, compact = false }: KRWResu
           backgroundColor: COLORS.primary,
         },
       ]}>
-      <View style={styles.container}>
+      <View style={[styles.container, compact && styles.compactContainer]}>
         <Text style={styles.label}>약</Text>
         <Text
           style={[
@@ -51,6 +51,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xl,
   },
   compactCard: { paddingVertical: SPACING.md },
+  compactContainer: { gap: SPACING.xs },
   container: {
     alignItems: 'center',
     gap: SPACING.md,

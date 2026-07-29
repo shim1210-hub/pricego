@@ -6,9 +6,10 @@ import { useState } from 'react';
 interface CountrySelectorProps {
   selectedCode: string;
   onSelect: (code: string) => void;
+  compact?: boolean;
 }
 
-export function CountrySelectorPill({ selectedCode, onSelect }: CountrySelectorProps) {
+export function CountrySelectorPill({ selectedCode, onSelect, compact = false }: CountrySelectorProps) {
   const [visible, setVisible] = useState(false);
   const selected = COUNTRY_OPTIONS.find((c) => c.code === selectedCode);
 
@@ -16,7 +17,7 @@ export function CountrySelectorPill({ selectedCode, onSelect }: CountrySelectorP
     <>
     <Pressable
       onPress={() => setVisible(true)}
-      style={({ pressed }) => [styles.container, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.container, compact && styles.compactContainer, pressed && styles.pressed]}>
       <View style={styles.contentContainer}>
         {selected && (
           <>
@@ -66,6 +67,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     alignSelf: 'flex-start',
+  },
+  compactContainer: {
+    paddingVertical: SPACING.sm,
   },
   contentContainer: {
     flexDirection: 'row',

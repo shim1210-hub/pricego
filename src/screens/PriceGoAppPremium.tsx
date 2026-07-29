@@ -1197,6 +1197,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   homeManualButton: {
+    display: 'none',
     alignSelf: 'center',
     minWidth: 160,
     marginTop: SPACING.sm,
@@ -1260,6 +1261,9 @@ const styles = StyleSheet.create({
   },
   compactManualHeading: {
     marginBottom: SPACING.xs,
+    textAlign: 'center',
+    fontSize: 18,
+    lineHeight: 24,
   },
   compactManualCard: {
     paddingVertical: SPACING.sm,

@@ -36,15 +36,15 @@ export function NumberPadPremium({ onPress, onBackspace, compact = false }: Numb
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    gap: SPACING.sm,
+    rowGap: SPACING.xs,
     marginVertical: SPACING.md,
   },
-  compactContainer: { gap: SPACING.xs, marginVertical: SPACING.xs },
+  compactContainer: { rowGap: SPACING.xs, marginVertical: SPACING.xs },
   row: {
     flexDirection: 'row',
-    gap: SPACING.sm,
+    columnGap: SPACING.sm,
   },
-  compactRow: { gap: SPACING.xs },
+  compactRow: { columnGap: SPACING.xs },
   key: {
     flex: 1,
     minHeight: 58,

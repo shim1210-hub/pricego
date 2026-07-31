@@ -490,7 +490,7 @@ function HomeScreenPremium({
     <SafeAreaView edges={['top']} style={styles.fullScreen}>
       <View style={styles.screenWithNav}>
         <ScreenHeader
-          title="PriceGo"
+          title="PriceGo v1.0"
           rightIcon="⚙"
           onRightPress={() => onNavigate('settings')}
         />
@@ -997,8 +997,16 @@ function SettingsScreenPremium({
 
           <View style={styles.settingsSection}>
             <SettingRow
-              title="정보"
-              value={`PriceGo v${Constants.expoConfig?.version ?? '1.0.1'}`}
+              title="정보 / 버전"
+              value={
+                <View style={styles.aboutInfo}>
+                  <Text style={styles.aboutServiceVersion}>PriceGo v1.0</Text>
+                  <Text style={styles.aboutLabel}>Version</Text>
+                  <Text style={styles.aboutValue}>{Constants.expoConfig?.version ?? '1.0.1'}</Text>
+                  <Text style={styles.aboutValue}>개발{`\n`}NexDataForge</Text>
+                  <Text style={styles.aboutCopyright}>© 2026 NexDataForge</Text>
+                </View>
+              }
             />
           </View>
         </ScrollView>
@@ -1269,7 +1277,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   compactManualResetButton: {
-    marginTop: 0,
+    marginTop: SPACING.xs,
     marginBottom: 0,
   },
   buttonHalf: {
@@ -1371,5 +1379,28 @@ const styles = StyleSheet.create({
   },
   settingsSection: {
     marginBottom: SPACING.lg,
+  },
+  aboutInfo: {
+    alignItems: 'flex-end',
+  },
+  aboutServiceVersion: {
+    ...TYPOGRAPHY.bodySmall,
+    color: COLORS.textPrimary,
+  },
+  aboutLabel: {
+    ...TYPOGRAPHY.captionSmall,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
+  },
+  aboutValue: {
+    ...TYPOGRAPHY.bodySmall,
+    color: COLORS.textSecondary,
+    textAlign: 'right',
+  },
+  aboutCopyright: {
+    ...TYPOGRAPHY.captionSmall,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
+    textAlign: 'right',
   },
 });

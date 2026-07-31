@@ -39,7 +39,8 @@ const styles = StyleSheet.create({
     rowGap: SPACING.xs,
     marginVertical: SPACING.md,
   },
-  compactContainer: { rowGap: SPACING.xs, marginVertical: SPACING.xs },
+  // Keep the keys unchanged while reclaiming vertical space between rows.
+  compactContainer: { rowGap: 0, marginVertical: SPACING.xs },
   row: {
     flexDirection: 'row',
     columnGap: SPACING.sm,

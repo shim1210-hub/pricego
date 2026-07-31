@@ -533,6 +533,7 @@ function HomeScreenPremium({
             updatedAt={exchangeRate.updatedAt}
             supportOffline
             compact={compact}
+            style={styles.homeExchangeRateCard}
           />
         </ScrollView>
 
@@ -1275,6 +1276,9 @@ const styles = StyleSheet.create({
   },
   compactManualCard: {
     paddingVertical: 6,
+  },
+  homeExchangeRateCard: {
+    marginTop: 32,
   },
   compactManualResetButton: {
     marginTop: SPACING.xs,

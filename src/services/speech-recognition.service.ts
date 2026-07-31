@@ -28,7 +28,7 @@ export class SpeechRecognitionService {
       throw new SpeechRecognitionError('음성인식 서비스를 사용할 수 없습니다.', 'service-not-allowed');
     }
 
-    const language = countryCode === 'US' ? 'en-US' : 'ko-KR';
+    const language = ({ US: 'en-US', VN: 'vi-VN', JP: 'ja-JP', CN: 'zh-CN' } as const)[countryCode];
     return new Promise<SpeechRecognitionResult>((resolve, reject) => {
       let transcript = '';
       let confidence = -1;

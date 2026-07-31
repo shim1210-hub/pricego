@@ -1,17 +1,18 @@
 import { Card } from '@/components/ui/Card';
 import { COLORS, SPACING, TYPOGRAPHY } from '@/constants/design';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 interface ExchangeRateCardProps {
   rateText: string;
   updatedAt: string;
   supportOffline?: boolean;
   compact?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
-export function ExchangeRateCard({ rateText, updatedAt, supportOffline = true, compact = false }: ExchangeRateCardProps) {
+export function ExchangeRateCard({ rateText, updatedAt, supportOffline = true, compact = false, style }: ExchangeRateCardProps) {
   return (
-    <Card variant="filled" style={compact && styles.compactCard}>
+    <Card variant="filled" style={[compact && styles.compactCard, style]}>
       <View style={[styles.container, compact && styles.compactContainer]}>
         <Text style={styles.rate}>{rateText}</Text>
         <View style={styles.meta}>

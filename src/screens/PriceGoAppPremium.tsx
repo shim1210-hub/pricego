@@ -29,6 +29,7 @@ const settingsService = new AppSettingsService();
 const exchangeRateService = new ExchangeRateService();
 const speechService = new SpeechRecognitionService();
 const parserService = new PriceParserService();
+const RECOGNITION_CHECK_THRESHOLD = 300 * 1000;
 
 type CountryDisplay = { code: SupportedCountryCode; name: string; flag: string; currency: CurrencyCode };
 type RecognitionState = { amount: number; text: string; currency: CurrencyCode };
@@ -49,8 +50,8 @@ export function PriceGoApp() {
   const [screen, setScreen] = useState<ScreenName>('onboarding');
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
   const [recognition, setRecognition] = useState<RecognitionState | null>(null);
-  const [manualInput, setManualInput] = useState('300000');
-  const [displayAmount, setDisplayAmount] = useState('300,000');
+  const [manualInput, setManualInput] = useState('');
+  const [displayAmount, setDisplayAmount] = useState('');
   const [activeTab, setActiveTab] = useState<'home' | 'input' | 'settings'>('home');
   const [rateVersion, setRateVersion] = useState(0);
   const [isRefreshingRates, setIsRefreshingRates] = useState(false);
@@ -129,7 +130,7 @@ export function PriceGoApp() {
       if (!isMountedRef.current) return;
       setRecognition({ amount: parsed.result.amount, text: selected?.candidate.text ?? result.recognizedText, currency });
       if (settings.vibrationOn) Vibration.vibrate(30);
-      if (parsed.result.amount >= 300000 && currency === 'VND') {
+      if (parsed.result.amount >= RECOGNITION_CHECK_THRESHOLD && currency === 'VND') {
         setScreen('recognition-check');
       } else {
         setScreen('result');
@@ -174,19 +175,19 @@ export function PriceGoApp() {
 
   const handleManualInputChange = (value: string) => {
     const next = `${manualInput}${value}`.replace(/^0+(?=\d)/, '');
-    setManualInput(next || '0');
-    setDisplayAmount(new Intl.NumberFormat('ko-KR').format(Number(next || '0')));
+    setManualInput(next);
+    setDisplayAmount(next ? new Intl.NumberFormat('ko-KR').format(Number(next)) : '');
   };
 
   const handleManualBackspace = () => {
     const next = manualInput.slice(0, -1);
-    setManualInput(next || '0');
-    setDisplayAmount(new Intl.NumberFormat('ko-KR').format(Number(next || '0')));
+    setManualInput(next);
+    setDisplayAmount(next ? new Intl.NumberFormat('ko-KR').format(Number(next)) : '');
   };
 
   const resetManualInput = () => {
-    setManualInput('0');
-    setDisplayAmount('0');
+    setManualInput('');
+    setDisplayAmount('');
   };
 
   const handleManualCountrySelect = async (code: SupportedCountryCode) => {
@@ -301,7 +302,7 @@ export function PriceGoApp() {
             onCountrySelect={handleManualCountrySelect}
             amount={manualInput}
             displayAmount={displayAmount}
-            krwAmount={exchangeRateService.formatKrw(krwValue)}
+            krwAmount={manualInput ? exchangeRateService.formatKrw(krwValue) : ''}
             onChange={handleManualInputChange}
             onBackspace={handleManualBackspace}
             onReset={resetManualInput}

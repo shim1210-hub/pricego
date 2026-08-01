@@ -9,7 +9,6 @@ export interface CountryOption {
   currency: CurrencyCode;
   language: string;
   rateToKrw: number;
-  exampleAmount: number;
 }
 
 export interface SpeechRecognitionResult {

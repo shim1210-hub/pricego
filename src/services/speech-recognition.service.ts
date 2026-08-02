@@ -55,7 +55,9 @@ export class SpeechRecognitionService {
   private sessionCounter = 0;
 
   async recognize(countryCode: SupportedCountryCode): Promise<SpeechRecognitionResult> {
-    this.cancel();
+    // Do not abort an idle native recognizer before the first start request.
+    // This preserves the previously working Android initialization sequence.
+    if (this.activeSubscriptions.length) this.cancel();
     const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
     recordVoiceDiagnostic('VOICE_02_PERMISSION', { permissionStatus: permission.status, currencyCode: countryCode });
     console.log('[VOICE_02_PERMISSION]', { permissionStatus: permission.status });
@@ -129,11 +131,11 @@ export class SpeechRecognitionService {
           else if (!hadFinal) finish(() => resolve({ recognizedText: transcript, confidence: confidence >= 0 ? confidence : 0, alternatives }));
         }),
       ];
+      armTimeout();
       try {
         console.log('[VOICE_04_START_REQUEST]', { locale: language });
         recordVoiceDiagnostic('VOICE_04_START_REQUEST', { currencyCode: countryCode, locale: language });
         ExpoSpeechRecognitionModule.start({ lang: language, interimResults: true, maxAlternatives: 3 });
-        armTimeout();
         console.log('[PRICEGO_SPEECH_START]', { sessionId, nativeAvailable: true, permission: permission.status });
       } catch (error) {
         finish(() => reject(new SpeechRecognitionError(error instanceof Error ? error.message : '음성인식을 시작할 수 없습니다.', 'unknown')));

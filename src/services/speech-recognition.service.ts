@@ -42,6 +42,7 @@ export class SpeechRecognitionService {
       let transcript = '';
       let confidence = -1;
       let alternatives: Array<{ transcript: string; confidence: number }> = [];
+      let hadFinal = false;
       let settled = false;
       let timeoutId: ReturnType<typeof setTimeout>;
       const finish = (callback: () => void) => {
@@ -73,6 +74,7 @@ export class SpeechRecognitionService {
           armTimeout();
           console.log(event.isFinal ? '[PRICEGO_SPEECH_FINAL]' : '[PRICEGO_SPEECH_PARTIAL]', { sessionId, results, elapsedMs: Date.now() - startedAt });
           if (!event.isFinal) return;
+          hadFinal = true;
           finish(() => resolve({ recognizedText: transcript, confidence: confidence >= 0 ? confidence : 0, alternatives }));
         }),
         ExpoSpeechRecognitionModule.addListener('error', (event) => {
@@ -80,13 +82,14 @@ export class SpeechRecognitionService {
           finish(() => reject(new SpeechRecognitionError(event.message || '음성인식에 실패했습니다.', event.error)));
         }),
         ExpoSpeechRecognitionModule.addListener('end', () => {
-          console.log('[PRICEGO_SPEECH_END]', { sessionId, hadPartial: Boolean(transcript), hadFinal: false, elapsedMs: Date.now() - startedAt });
+          console.log('[PRICEGO_SPEECH_END]', { sessionId, hadPartial: Boolean(transcript), hadFinal, elapsedMs: Date.now() - startedAt });
           if (!transcript.trim()) finish(() => reject(new SpeechRecognitionError('음성이 감지되지 않았습니다.', 'empty-result')));
+          else if (!hadFinal) finish(() => resolve({ recognizedText: transcript, confidence: confidence >= 0 ? confidence : 0, alternatives }));
         }),
       ];
-      armTimeout();
       try {
         ExpoSpeechRecognitionModule.start({ lang: language, interimResults: true, maxAlternatives: 3 });
+        armTimeout();
         console.log('[PRICEGO_SPEECH_START]', { sessionId, nativeAvailable: true, permission: permission.status });
       } catch (error) {
         finish(() => reject(new SpeechRecognitionError(error instanceof Error ? error.message : '음성인식을 시작할 수 없습니다.', 'unknown')));

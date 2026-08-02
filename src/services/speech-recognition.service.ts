@@ -24,19 +24,14 @@ export function recordVoiceDiagnostic(name: string, details?: Record<string, unk
 }
 
 /**
- * PriceGo 핵심 기능: 국가별 음성 금액 인식
- * VND, JPY, USD, CNY는 음성 언어와 금액 표현이 다르므로 통화별 locale을 유지한다.
- * 명시적 지시 없이 특정 통화 지원을 삭제하거나 단일 통화 구현으로 덮어쓰지 않는다.
+ * PriceGo v1.0 핵심 정책: 한국인 여행자의 한국어 발화를 먼저 인식한다.
+ * 통화별 차이는 STT locale이 아니라 선택 통화의 parser가 처리한다.
+ * 명시적 지시 없이 locale 정책이나 통화별 parser를 단순화하지 않는다.
  */
-export const recognitionLocaleByCountry = {
-  VN: 'vi-VN',
-  JP: 'ja-JP',
-  US: 'en-US',
-  CN: 'zh-CN',
-} as const;
+export const DEFAULT_RECOGNITION_LOCALE = 'ko-KR' as const;
 
-export function getRecognitionLocale(countryCode: SupportedCountryCode) {
-  return recognitionLocaleByCountry[countryCode];
+export function getRecognitionLocale(_countryCode: SupportedCountryCode) {
+  return DEFAULT_RECOGNITION_LOCALE;
 }
 
 export class SpeechRecognitionError extends Error {
@@ -68,6 +63,7 @@ export class SpeechRecognitionService {
     }
 
     const language = getRecognitionLocale(countryCode);
+    console.log('[VOICE_REAL_LOCALE]', { currencyCode: countryCode, locale: language });
     recordVoiceDiagnostic('VOICE_03_LOCALE', { currencyCode: countryCode, locale: language });
     console.log('[VOICE_03_LOCALE]', { currencyCode: countryCode, locale: language });
     const sessionId = ++this.sessionCounter;

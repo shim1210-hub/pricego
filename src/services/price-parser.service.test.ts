@@ -1,4 +1,4 @@
-import { getRecognitionLocale } from './speech-recognition.service';
+import { DEFAULT_RECOGNITION_LOCALE, getRecognitionLocale } from './speech-recognition.service';
 import { parseCnyAmount, parseJpyAmount, parseSpokenAmount, parseUsdAmount, parseVndAmount } from './price-parser.service';
 
 // Regression cases for the four supported voice flows. Run with the project's test runner when configured.
@@ -14,7 +14,6 @@ for (const [actual, expected] of cases) {
   if (actual !== expected) throw new Error(`voice parser regression: expected ${expected}, got ${actual}`);
 }
 
-const locales = { VN: 'vi-VN', JP: 'ja-JP', US: 'en-US', CN: 'zh-CN' } as const;
-for (const [country, expected] of Object.entries(locales)) {
-  if (getRecognitionLocale(country as keyof typeof locales) !== expected) throw new Error(`locale regression: ${country}`);
+for (const country of ['VN', 'JP', 'US', 'CN'] as const) {
+  if (getRecognitionLocale(country) !== DEFAULT_RECOGNITION_LOCALE) throw new Error(`locale regression: ${country}`);
 }

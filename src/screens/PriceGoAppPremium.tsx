@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View, Vibration, useWindowDimensions } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View, Vibration, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 
@@ -22,7 +22,7 @@ import { COLORS, SPACING, TYPOGRAPHY } from '@/constants/design';
 import { AppSettingsService, DEFAULT_APP_SETTINGS } from '@/services/app-settings.service';
 import { COUNTRY_BY_CODE, COUNTRY_OPTIONS, ExchangeRateService } from '@/services/exchange-rate.service';
 import { PriceParserService } from '@/services/price-parser.service';
-import { SpeechRecognitionError, SpeechRecognitionService } from '@/services/speech-recognition.service';
+import { clearVoiceDiagnosticLogs, recordVoiceDiagnostic, SpeechRecognitionError, SpeechRecognitionService, subscribeVoiceDiagnostics, type VoiceDiagnostic } from '@/services/speech-recognition.service';
 import type { AppSettings, CurrencyCode, ExchangeRateSnapshot, SupportedCountryCode } from '@/services/types';
 
 const settingsService = new AppSettingsService();
@@ -53,6 +53,8 @@ export function PriceGoApp() {
   const [manualInput, setManualInput] = useState('');
   const [displayAmount, setDisplayAmount] = useState('');
   const [activeTab, setActiveTab] = useState<'home' | 'input' | 'settings'>('home');
+  const [voiceDiagnostics, setVoiceDiagnostics] = useState<VoiceDiagnostic[]>([]);
+  const [showVoiceDiagnostics, setShowVoiceDiagnostics] = useState(false);
   const [rateVersion, setRateVersion] = useState(0);
   const [isRefreshingRates, setIsRefreshingRates] = useState(false);
   const isMountedRef = useRef(true);
@@ -62,6 +64,8 @@ export function PriceGoApp() {
     isMountedRef.current = false;
     if (listeningRef.current) speechService.cancel();
   }, []);
+
+  useEffect(() => subscribeVoiceDiagnostics(setVoiceDiagnostics), []);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -96,6 +100,8 @@ export function PriceGoApp() {
 
   const startListening = async () => {
     if (!isMountedRef.current || listeningRef.current) return;
+    if (__DEV__) console.log('[VOICE_01_BUTTON_PRESS]', { currencyCode: settings.selectedCurrency });
+    recordVoiceDiagnostic('VOICE_01_BUTTON_PRESS', { currencyCode: settings.selectedCurrency });
     listeningRef.current = true;
     if (settings.vibrationOn) Vibration.vibrate(30);
     setScreen('listening');
@@ -129,7 +135,7 @@ export function PriceGoApp() {
         showRetryAlert(
           parsed.reason === 'CURRENCY_NOT_FOUND'
             ? "금액과 함께 '동', '엔', '위안', '달러'처럼 말해주세요."
-            : '가격을 찾지 못했어요. 다시 말씀해주세요.',
+            : '음성을 인식하지 못했습니다. 마이크 권한을 확인한 뒤 다시 말하거나 직접 금액을 입력해주세요.',
           startListening,
         );
         return;
@@ -137,6 +143,7 @@ export function PriceGoApp() {
 
       if (!isMountedRef.current) return;
       if (__DEV__) console.log('[VOICE_DEBUG]', { countryCode: settings.selectedCountryCode, currencyCode: currency, parsedAmount: parsed.result.amount });
+      recordVoiceDiagnostic('VOICE_07_PARSED', { currencyCode: currency, parsedAmount: parsed.result.amount });
       setRecognition({ amount: parsed.result.amount, text: selected?.candidate.text ?? result.recognizedText, currency });
       if (settings.vibrationOn) Vibration.vibrate(30);
       if (parsed.result.amount >= RECOGNITION_CHECK_THRESHOLD && currency === 'VND') {
@@ -365,6 +372,7 @@ export function PriceGoApp() {
             onBack={() => setScreen('home')}
             onCountryPress={() => setScreen('country-select')}
             onRatePress={() => setScreen('exchange-rate')}
+            onVoiceDiagnostics={() => setShowVoiceDiagnostics(true)}
             onToggle={(key, value) => {
               const next = { ...settings, [key]: value } as AppSettings;
               saveSettings(next);
@@ -390,6 +398,13 @@ export function PriceGoApp() {
   return (
     <View style={styles.container}>
       {renderScreen()}
+      <VoiceDiagnosticsModal
+        visible={showVoiceDiagnostics}
+        logs={voiceDiagnostics}
+        onClose={() => setShowVoiceDiagnostics(false)}
+        onClear={clearVoiceDiagnosticLogs}
+        onCopy={() => Share.share({ message: formatVoiceDiagnostics(voiceDiagnostics) })}
+      />
     </View>
   );
 }
@@ -941,6 +956,7 @@ function SettingsScreenPremium({
   onBack,
   onCountryPress,
   onRatePress,
+  onVoiceDiagnostics,
   onToggle,
   onNavigate,
   activeTab,
@@ -949,6 +965,7 @@ function SettingsScreenPremium({
   onBack: () => void;
   onCountryPress: () => void;
   onRatePress: () => void;
+  onVoiceDiagnostics: () => void;
   onToggle: (key: 'vibrationOn' | 'largeResultText', value: boolean) => void;
   onNavigate: (tab: 'home' | 'input' | 'settings') => void;
   activeTab: 'home' | 'input' | 'settings';
@@ -981,6 +998,13 @@ function SettingsScreenPremium({
               subtitle="최근 환율 보기"
               value="확인"
               onPress={onRatePress}
+              showChevron
+            />
+            <SettingRow
+              title="음성 진단 보기"
+              subtitle="최근 음성 인식 단계 확인"
+              value="보기"
+              onPress={onVoiceDiagnostics}
               showChevron
             />
 

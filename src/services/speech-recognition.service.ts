@@ -6,6 +6,22 @@ import {
 import type { SpeechRecognitionResult, SupportedCountryCode } from './types';
 
 const SPEECH_TIMEOUT_MS = 12_000;
+export type VoiceDiagnostic = { name: string; timestamp: number; details?: Record<string, unknown> };
+const diagnosticLogs: VoiceDiagnostic[] = [];
+const diagnosticListeners = new Set<(logs: VoiceDiagnostic[]) => void>();
+
+export function getVoiceDiagnosticLogs() { return [...diagnosticLogs]; }
+export function clearVoiceDiagnosticLogs() { diagnosticLogs.length = 0; diagnosticListeners.forEach((listener) => listener([])); }
+export function subscribeVoiceDiagnostics(listener: (logs: VoiceDiagnostic[]) => void) {
+  diagnosticListeners.add(listener);
+  listener(getVoiceDiagnosticLogs());
+  return () => diagnosticListeners.delete(listener);
+}
+export function recordVoiceDiagnostic(name: string, details?: Record<string, unknown>) {
+  diagnosticLogs.push({ name, timestamp: Date.now(), details });
+  if (diagnosticLogs.length > 100) diagnosticLogs.splice(0, diagnosticLogs.length - 100);
+  diagnosticListeners.forEach((listener) => listener(getVoiceDiagnosticLogs()));
+}
 
 /**
  * PriceGo 핵심 기능: 국가별 음성 금액 인식
@@ -41,6 +57,8 @@ export class SpeechRecognitionService {
   async recognize(countryCode: SupportedCountryCode): Promise<SpeechRecognitionResult> {
     this.cancel();
     const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    recordVoiceDiagnostic('VOICE_02_PERMISSION', { permissionStatus: permission.status, currencyCode: countryCode });
+    console.log('[VOICE_02_PERMISSION]', { permissionStatus: permission.status });
     console.log('[PRICEGO_SPEECH_PERMISSION]', { status: permission.status, canAskAgain: permission.canAskAgain });
     if (!permission.granted) throw new SpeechRecognitionError('마이크 권한이 필요합니다.', 'permission-denied');
     if (!ExpoSpeechRecognitionModule.isRecognitionAvailable()) {
@@ -48,6 +66,8 @@ export class SpeechRecognitionService {
     }
 
     const language = getRecognitionLocale(countryCode);
+    recordVoiceDiagnostic('VOICE_03_LOCALE', { currencyCode: countryCode, locale: language });
+    console.log('[VOICE_03_LOCALE]', { currencyCode: countryCode, locale: language });
     const sessionId = ++this.sessionCounter;
     const startedAt = Date.now();
     console.log('[PRICEGO_SPEECH_SESSION]', { sessionId, locale: language, currency: countryCode, startedAt });
@@ -78,11 +98,17 @@ export class SpeechRecognitionService {
       };
 
       this.activeSubscriptions = [
+        ExpoSpeechRecognitionModule.addListener('start', () => {
+          console.log('[VOICE_05_SPEECH_STARTED]', { sessionId, locale: language });
+          recordVoiceDiagnostic('VOICE_05_SPEECH_STARTED', { currencyCode: countryCode, locale: language });
+        }),
         ExpoSpeechRecognitionModule.addListener('result', (event) => {
           const results = event.results.filter((item) => item.transcript?.trim());
           const result = results[0];
           if (!result) return;
           transcript = result.transcript;
+          console.log('[VOICE_06_RESULT]', { rawSpeechText: transcript, sessionId });
+          recordVoiceDiagnostic('VOICE_06_RESULT', { currencyCode: countryCode, locale: language, rawSpeechText: transcript });
           confidence = result.confidence;
           alternatives = results.map((item) => ({ transcript: item.transcript, confidence: item.confidence }));
           armTimeout();
@@ -92,6 +118,8 @@ export class SpeechRecognitionService {
           finish(() => resolve({ recognizedText: transcript, confidence: confidence >= 0 ? confidence : 0, alternatives }));
         }),
         ExpoSpeechRecognitionModule.addListener('error', (event) => {
+          console.log('[VOICE_08_ERROR]', { code: event.error, message: event.message, sessionId });
+          recordVoiceDiagnostic('VOICE_08_ERROR', { currencyCode: countryCode, locale: language, code: event.error, message: event.message });
           console.log('[PRICEGO_SPEECH_ERROR]', { sessionId, code: event.error, message: event.message, elapsedMs: Date.now() - startedAt });
           finish(() => reject(new SpeechRecognitionError(event.message || '음성인식에 실패했습니다.', event.error)));
         }),
@@ -102,6 +130,8 @@ export class SpeechRecognitionService {
         }),
       ];
       try {
+        console.log('[VOICE_04_START_REQUEST]', { locale: language });
+        recordVoiceDiagnostic('VOICE_04_START_REQUEST', { currencyCode: countryCode, locale: language });
         ExpoSpeechRecognitionModule.start({ lang: language, interimResults: true, maxAlternatives: 3 });
         armTimeout();
         console.log('[PRICEGO_SPEECH_START]', { sessionId, nativeAvailable: true, permission: permission.status });

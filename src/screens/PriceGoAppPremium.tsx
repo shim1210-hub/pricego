@@ -108,6 +108,14 @@ export function PriceGoApp() {
         return;
       }
       const currency = COUNTRY_BY_CODE[settings.selectedCountryCode].currency;
+      if (__DEV__) {
+        console.log('[VOICE_DEBUG]', {
+          countryCode: settings.selectedCountryCode,
+          currencyCode: currency,
+          rawSpeechText: result.recognizedText,
+          normalizedText: result.recognizedText.toLowerCase().replace(/[，,]/g, '').replace(/\s+/g, ' ').trim(),
+        });
+      }
       const recognitionCandidates = [{ text: result.recognizedText, confidence: result.confidence }, ...(result.alternatives ?? []).map((item) => ({ text: item.transcript, confidence: item.confidence }))];
       const parsedCandidates = recognitionCandidates
         .map((candidate) => ({ candidate, parsed: parserService.parseDetailed(candidate.text, currency) }))
@@ -128,6 +136,7 @@ export function PriceGoApp() {
       }
 
       if (!isMountedRef.current) return;
+      if (__DEV__) console.log('[VOICE_DEBUG]', { countryCode: settings.selectedCountryCode, currencyCode: currency, parsedAmount: parsed.result.amount });
       setRecognition({ amount: parsed.result.amount, text: selected?.candidate.text ?? result.recognizedText, currency });
       if (settings.vibrationOn) Vibration.vibrate(30);
       if (parsed.result.amount >= RECOGNITION_CHECK_THRESHOLD && currency === 'VND') {

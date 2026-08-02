@@ -15,7 +15,7 @@ export function clearVoiceDiagnosticLogs() { diagnosticLogs.length = 0; diagnost
 export function subscribeVoiceDiagnostics(listener: (logs: VoiceDiagnostic[]) => void) {
   diagnosticListeners.add(listener);
   listener(getVoiceDiagnosticLogs());
-  return () => diagnosticListeners.delete(listener);
+  return () => { diagnosticListeners.delete(listener); };
 }
 export function recordVoiceDiagnostic(name: string, details?: Record<string, unknown>) {
   diagnosticLogs.push({ name, timestamp: Date.now(), details });

@@ -1052,6 +1052,37 @@ function SettingsScreenPremium({
   );
 }
 
+function formatVoiceDiagnostics(logs: VoiceDiagnostic[]) {
+  return logs.map((log) => {
+    const time = new Date(log.timestamp).toLocaleTimeString('ko-KR', { hour12: false });
+    const details = Object.entries(log.details ?? {}).map(([key, value]) => `${key}=${String(value)}`).join(' ');
+    return `[${time}] ${log.name}${details ? ` ${details}` : ''}`;
+  }).join('\n');
+}
+
+function VoiceDiagnosticsModal({
+  visible, logs, onClose, onClear, onCopy,
+}: { visible: boolean; logs: VoiceDiagnostic[]; onClose: () => void; onClear: () => void; onCopy: () => void }) {
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={styles.fullScreen}>
+        <ScreenHeader title="음성 진단" showBack onBackPress={onClose} />
+        <ScrollView style={styles.voiceDiagnosticList} contentContainerStyle={styles.pagePadding}>
+          <Text style={styles.infoText}>최근 음성 인식 로그 {logs.length}/100</Text>
+          <Text selectable style={styles.voiceDiagnosticText}>
+            {logs.length ? formatVoiceDiagnostics(logs) : '아직 음성 인식 로그가 없습니다.'}
+          </Text>
+        </ScrollView>
+        <View style={styles.voiceDiagnosticActions}>
+          <Button label="로그 복사" onPress={onCopy} style={styles.buttonHalf} />
+          <Button label="로그 초기화" onPress={onClear} style={styles.buttonHalf} />
+          <Button label="닫기" onPress={onClose} style={styles.buttonHalf} />
+        </View>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
 function showRetryAlert(message: string, retry: () => void) {
   Alert.alert('다시 해볼까요?', message, [
     { text: '다시 말하기', onPress: retry },
@@ -1440,5 +1471,17 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: SPACING.xs,
     textAlign: 'right',
+  },
+  voiceDiagnosticList: { flex: 1 },
+  voiceDiagnosticText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textPrimary,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    lineHeight: 20,
+  },
+  voiceDiagnosticActions: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    padding: SPACING.md,
   },
 });

@@ -41,6 +41,20 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "PriceGo가 가격표 사진을 읽으려면 사진 권한이 필요합니다.",
+          "cameraPermission": "PriceGo가 가격표를 촬영하려면 카메라 권한이 필요합니다.",
+          "microphonePermission": "PriceGo가 음성 인식을 사용하려면 마이크 권한이 필요합니다."
+        }
+      ],
+      [
+        "expo-ocr-kit",
+        {
+          "cameraPermission": "PriceGo가 가격표를 촬영하려면 카메라 권한이 필요합니다."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#208AEF",

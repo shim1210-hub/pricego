@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View, Vibration, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
+import * as ImagePicker from 'expo-image-picker';
 
 import { AudioWavePremium } from '@/components/AudioWavePremium';
 import { BottomNavigationPremium } from '@/components/BottomNavigationPremium';
@@ -22,6 +23,7 @@ import { COLORS, SPACING, TYPOGRAPHY } from '@/constants/design';
 import { AppSettingsService, DEFAULT_APP_SETTINGS } from '@/services/app-settings.service';
 import { COUNTRY_BY_CODE, COUNTRY_OPTIONS, ExchangeRateService } from '@/services/exchange-rate.service';
 import { PriceParserService } from '@/services/price-parser.service';
+import { recognizePriceFromImage } from '@/services/ocr.service';
 import { clearVoiceDiagnosticLogs, recordVoiceDiagnostic, SpeechRecognitionError, SpeechRecognitionService, subscribeVoiceDiagnostics, type VoiceDiagnostic } from '@/services/speech-recognition.service';
 import type { AppSettings, CurrencyCode, ExchangeRateSnapshot, SupportedCountryCode } from '@/services/types';
 
@@ -57,6 +59,7 @@ export function PriceGoApp() {
   const [showVoiceDiagnostics, setShowVoiceDiagnostics] = useState(false);
   const [rateVersion, setRateVersion] = useState(0);
   const [isRefreshingRates, setIsRefreshingRates] = useState(false);
+  const [ocrResult, setOcrResult] = useState<{ amount: number; rawText: string } | null>(null);
   const isMountedRef = useRef(true);
   const listeningRef = useRef(false);
 
@@ -161,6 +164,26 @@ export function PriceGoApp() {
     }
   };
 
+  const startOcr = async () => {
+    Alert.alert('사진으로 금액 인식', '사진을 가져올 방법을 선택하세요.', [
+      { text: '카메라', onPress: () => void pickOcrImage('camera') },
+      { text: '갤러리', onPress: () => void pickOcrImage('library') },
+      { text: '취소', style: 'cancel' },
+    ]);
+  };
+
+  const pickOcrImage = async (source: 'camera' | 'library') => {
+    const result = source === 'camera'
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+    if (result.canceled) return;
+    try {
+      setOcrResult(await recognizePriceFromImage(result.assets[0].uri));
+    } catch {
+      Alert.alert('금액을 찾을 수 없습니다.', '가격이 잘 보이는 사진을 다시 선택해주세요.');
+    }
+  };
+
   const confirmAmount = (candidate: number) => {
     setRecognition((prev) => (prev ? { ...prev, amount: candidate } : prev));
     setScreen('result');
@@ -232,6 +255,8 @@ export function PriceGoApp() {
             exchangeRate={exchangeRate}
             onCountrySelect={handleCountrySelect}
             onMicPress={startListening}
+            onOcrPress={startOcr}
+            ocrResult={ocrResult}
             onNavigate={(tab) => {
               setActiveTab(tab);
               if (tab === 'input') {
@@ -496,6 +521,8 @@ function HomeScreenPremium({
   exchangeRate,
   onCountrySelect,
   onMicPress,
+  onOcrPress,
+  ocrResult,
   onNavigate,
   activeTab,
 }: {
@@ -503,6 +530,8 @@ function HomeScreenPremium({
   exchangeRate: ExchangeRateSnapshot;
   onCountrySelect: (code: SupportedCountryCode) => void;
   onMicPress: () => void;
+  onOcrPress: () => void;
+  ocrResult: { amount: number; rawText: string } | null;
   onNavigate: (tab: 'home' | 'input' | 'settings') => void;
   activeTab: 'home' | 'input' | 'settings';
 }) {
@@ -543,6 +572,13 @@ function HomeScreenPremium({
               버튼을 누르고{'\n'}상대방이 말하는 가격을 들려주세요.
             </Text>
             <Button
+              label="사진으로 금액 인식"
+              onPress={onOcrPress}
+              variant="outline"
+              size="medium"
+              style={styles.homeManualButton}
+            />
+            <Button
               label="직접 입력"
               onPress={() => onNavigate('input')}
               variant="secondary"
@@ -550,6 +586,14 @@ function HomeScreenPremium({
               style={styles.homeManualButton}
             />
           </View>
+
+          {ocrResult && (
+            <Card variant="elevated" style={styles.ocrResultCard}>
+              <Text style={styles.ocrResultLabel}>사진에서 인식한 금액</Text>
+              <Text style={styles.ocrResultAmount}>{new Intl.NumberFormat('ko-KR').format(ocrResult.amount)} {country.currency}</Text>
+              <Text style={styles.ocrResultKrw}>{exchangeRateService.formatKrw(exchangeRateService.calculateKrw(ocrResult.amount, country.currency))}</Text>
+            </Card>
+          )}
 
           <View style={compact ? styles.compactSpacer : styles.spacer} />
 
@@ -1344,6 +1388,24 @@ const styles = StyleSheet.create({
   },
   homeExchangeRateCard: {
     marginTop: 32,
+  },
+  ocrResultCard: {
+    marginTop: SPACING.md,
+  },
+  ocrResultLabel: {
+    ...TYPOGRAPHY.bodySmall,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  ocrResultAmount: {
+    ...TYPOGRAPHY.amountLocal,
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+  },
+  ocrResultKrw: {
+    ...TYPOGRAPHY.amountKRW,
+    color: COLORS.primary,
+    textAlign: 'center',
   },
   compactManualResetButton: {
     marginTop: SPACING.xs,

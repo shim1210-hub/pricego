@@ -2,17 +2,18 @@ import { COLORS, SIZES, SPACING, TYPOGRAPHY } from '@/constants/design';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-interface Props { activeTab: 'home' | 'input' | 'settings'; onTabChange: (tab: Props['activeTab']) => void; }
+interface Props { activeTab: 'home' | 'input' | 'settings'; onTabChange: (tab: Props['activeTab']) => void; onScanPress?: () => void; }
 
-export function BottomNavigationPremium({ activeTab, onTabChange }: Props) {
+export function BottomNavigationPremium({ activeTab, onTabChange, onScanPress }: Props) {
   const insets = useSafeAreaInsets();
   const tabs = [
+    { key: 'scan', label: '스캔', icon: '▣' },
     { key: 'home', label: '홈', icon: '🎤' },
     { key: 'input', label: '직접 입력', icon: '123' },
     { key: 'settings', label: '설정', icon: '⚙' },
   ] as const;
   return <View style={[styles.safeArea, { paddingBottom: insets.bottom }]}><View style={styles.container}>
-    {tabs.map((tab) => <Pressable key={tab.key} onPress={() => onTabChange(tab.key)} style={styles.tab}>
+    {tabs.map((tab) => <Pressable key={tab.key} onPress={() => tab.key === 'scan' ? onScanPress?.() : onTabChange(tab.key)} style={styles.tab}>
       <Text style={styles.icon}>{tab.icon}</Text><Text style={[styles.label, activeTab === tab.key && styles.activeLabel]}>{tab.label}</Text>
     </Pressable>)}
   </View></View>;

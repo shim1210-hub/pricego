@@ -11,6 +11,7 @@ import { ExchangeRateCard } from '@/components/ExchangeRateCard';
 import { KRWResultCard } from '@/components/KRWResultCard';
 import { LocalCurrencyCard } from '@/components/LocalCurrencyCard';
 import { MicButtonPremium } from '@/components/MicButtonPremium';
+import { ScanScreen } from '@/components/ScanScreen';
 import { NumberPadPremium } from '@/components/NumberPadPremium';
 import { OfflineBannerPremium } from '@/components/OfflineBannerPremium';
 import { Button } from '@/components/ui/Button';
@@ -46,7 +47,8 @@ type ScreenName =
   | 'manual-input'
   | 'exchange-rate'
   | 'show-amount'
-  | 'settings';
+  | 'settings'
+  | 'scan';
 
 export function PriceGoApp() {
   const [screen, setScreen] = useState<ScreenName>('onboarding');
@@ -256,6 +258,7 @@ export function PriceGoApp() {
             onCountrySelect={handleCountrySelect}
             onMicPress={startListening}
             onOcrPress={startOcr}
+            onScanPress={() => setScreen('scan')}
             ocrResult={ocrResult}
             onNavigate={(tab) => {
               setActiveTab(tab);
@@ -270,6 +273,8 @@ export function PriceGoApp() {
             activeTab={activeTab}
           />
         );
+      case 'scan':
+        return <ScanScreen countryCode={settings.selectedCountryCode} onBack={() => setScreen('home')} />;
       case 'listening':
         return (
           <ListeningScreenPremium
@@ -522,6 +527,7 @@ function HomeScreenPremium({
   onCountrySelect,
   onMicPress,
   onOcrPress,
+  onScanPress,
   ocrResult,
   onNavigate,
   activeTab,
@@ -531,6 +537,7 @@ function HomeScreenPremium({
   onCountrySelect: (code: SupportedCountryCode) => void;
   onMicPress: () => void;
   onOcrPress: () => void;
+  onScanPress: () => void;
   ocrResult: { amount: number; rawText: string } | null;
   onNavigate: (tab: 'home' | 'input' | 'settings') => void;
   activeTab: 'home' | 'input' | 'settings';
@@ -606,7 +613,7 @@ function HomeScreenPremium({
           />
         </ScrollView>
 
-        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} />
+        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={onScanPress} />
       </View>
     </SafeAreaView>
   );
@@ -646,7 +653,7 @@ function ListeningScreenPremium({
           </View>
         </ScrollView>
 
-        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} />
+        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('home')} />
       </View>
     </SafeAreaView>
   );
@@ -748,7 +755,7 @@ function ResultScreenPremium({
           </View>
         </ScrollView>
 
-        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} />
+        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('home')} />
       </View>
     </SafeAreaView>
   );
@@ -821,7 +828,7 @@ function RecognitionCheckScreenPremium({
           />
         </ScrollView>
 
-        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} />
+        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('home')} />
       </View>
     </SafeAreaView>
   );
@@ -891,7 +898,7 @@ function ManualInputScreenPremium({
           />
         </ScrollView>
 
-        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} />
+        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('home')} />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -964,7 +971,7 @@ function ExchangeRateScreenPremium({
           />
         </ScrollView>
 
-        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} />
+        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('home')} />
       </View>
     </SafeAreaView>
   );
@@ -1090,7 +1097,7 @@ function SettingsScreenPremium({
           </View>
         </ScrollView>
 
-        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} />
+        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('home')} />
       </View>
     </SafeAreaView>
   );

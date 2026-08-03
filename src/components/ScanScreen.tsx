@@ -1,0 +1,11 @@
+import { useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { COLORS, SPACING, TYPOGRAPHY } from '@/constants/design';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { recognizePriceFromImage, type OcrAmountResult } from '@/services/ocr.service';
+import type { SupportedCountryCode } from '@/services/types';
+export function ScanScreen({ countryCode, onBack }: { countryCode: SupportedCountryCode; onBack: () => void }) { const [result,setResult]=useState<OcrAmountResult|null>(null); const pick=async(source:'camera'|'gallery')=>{const response=source==='camera'?await ImagePicker.launchCameraAsync({mediaTypes:['images'],quality:.8}):await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],quality:.8});if(response.canceled)return;try{setResult(await recognizePriceFromImage(response.assets[0].uri,countryCode,source));}catch{Alert.alert('금액을 찾지 못했어요','금액이 잘 보이는 사진을 다시 선택해 주세요.');}};return <View style={styles.screen}><ScreenHeader title="스캔" showBack onBackPress={onBack}/><ScrollView contentContainerStyle={styles.content}><Text style={styles.title}>사진에서 금액 찾기</Text><Text style={styles.description}>영수증이나 메뉴판을 촬영하거나 선택하세요.</Text><Button label="카메라 촬영" onPress={()=>void pick('camera')} style={styles.button}/><Button label="갤러리에서 선택" onPress={()=>void pick('gallery')} variant="outline" style={styles.button}/>{result&&<Card variant="elevated" style={styles.card}><Text style={styles.label}>인식 결과</Text><Text style={styles.amount}>{new Intl.NumberFormat('ko-KR').format(result.amount)} {result.currency}</Text><Text selectable style={styles.raw}>{result.rawText}</Text></Card>}</ScrollView></View> }
+const styles=StyleSheet.create({screen:{flex:1,backgroundColor:COLORS.background},content:{padding:SPACING.xl},title:{...TYPOGRAPHY.heading,color:COLORS.textPrimary},description:{...TYPOGRAPHY.bodyMedium,color:COLORS.textSecondary,marginVertical:SPACING.lg},button:{marginTop:SPACING.md},card:{marginTop:SPACING.xl},label:{...TYPOGRAPHY.bodySmall,color:COLORS.textSecondary},amount:{...TYPOGRAPHY.amountLocal,color:COLORS.textPrimary,marginVertical:SPACING.sm},raw:{...TYPOGRAPHY.caption,color:COLORS.textSecondary}});

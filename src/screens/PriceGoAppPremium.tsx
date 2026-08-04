@@ -56,7 +56,7 @@ export function PriceGoApp() {
   const [recognition, setRecognition] = useState<RecognitionState | null>(null);
   const [manualInput, setManualInput] = useState('');
   const [displayAmount, setDisplayAmount] = useState('');
-  const [activeTab, setActiveTab] = useState<'home' | 'input' | 'settings'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'scan' | 'input' | 'settings'>('home');
   const [voiceDiagnostics, setVoiceDiagnostics] = useState<VoiceDiagnostic[]>([]);
   const [showVoiceDiagnostics, setShowVoiceDiagnostics] = useState(false);
   const [rateVersion, setRateVersion] = useState(0);
@@ -274,7 +274,19 @@ export function PriceGoApp() {
           />
         );
       case 'scan':
-        return <ScanScreen countryCode={settings.selectedCountryCode} onBack={() => setScreen('home')} />;
+        return (
+          <ScanScreen
+            countryCode={settings.selectedCountryCode}
+            onBack={() => setScreen('home')}
+            onNavigate={(tab) => {
+              setActiveTab(tab);
+              if (tab === 'scan') setScreen('scan');
+              else if (tab === 'input') setScreen('manual-input');
+              else if (tab === 'settings') setScreen('settings');
+              else setScreen('home');
+            }}
+          />
+        );
       case 'listening':
         return (
           <ListeningScreenPremium
@@ -393,6 +405,13 @@ export function PriceGoApp() {
             country={country}
             amount={recognition.amount}
             onBack={() => setScreen('result')}
+            onNavigate={(tab) => {
+              setActiveTab(tab);
+              if (tab === 'scan') setScreen('scan');
+              else if (tab === 'input') setScreen('manual-input');
+              else if (tab === 'settings') setScreen('settings');
+              else setScreen('home');
+            }}
           />
         ) : null;
       case 'settings':
@@ -539,8 +558,8 @@ function HomeScreenPremium({
   onOcrPress: () => void;
   onScanPress: () => void;
   ocrResult: { amount: number; rawText: string } | null;
-  onNavigate: (tab: 'home' | 'input' | 'settings') => void;
-  activeTab: 'home' | 'input' | 'settings';
+  onNavigate: (tab: 'home' | 'scan' | 'input' | 'settings') => void;
+  activeTab: 'home' | 'scan' | 'input' | 'settings';
 }) {
   const { width, height } = useWindowDimensions();
   const compact = height < 900;
@@ -627,8 +646,8 @@ function ListeningScreenPremium({
 }: {
   country: CountryDisplay;
   onStop: () => void;
-  onNavigate: (tab: 'home' | 'input' | 'settings') => void;
-  activeTab: 'home' | 'input' | 'settings';
+  onNavigate: (tab: 'home' | 'scan' | 'input' | 'settings') => void;
+  activeTab: 'home' | 'scan' | 'input' | 'settings';
 }) {
   return (
     <SafeAreaView edges={['top']} style={styles.fullScreen}>
@@ -677,8 +696,8 @@ function ResultScreenPremium({
   onReplay: () => void;
   onShowAmount: () => void;
   onManual: () => void;
-  onNavigate: (tab: 'home' | 'input' | 'settings') => void;
-  activeTab: 'home' | 'input' | 'settings';
+  onNavigate: (tab: 'home' | 'scan' | 'input' | 'settings') => void;
+  activeTab: 'home' | 'scan' | 'input' | 'settings';
 }) {
   if (!recognition) return null;
   const localAmount = recognition.amount;
@@ -775,8 +794,8 @@ function RecognitionCheckScreenPremium({
   onConfirm: (candidate: number) => void;
   onReplay: () => void;
   onManual: () => void;
-  onNavigate: (tab: 'home' | 'input' | 'settings') => void;
-  activeTab: 'home' | 'input' | 'settings';
+  onNavigate: (tab: 'home' | 'scan' | 'input' | 'settings') => void;
+  activeTab: 'home' | 'scan' | 'input' | 'settings';
 }) {
   if (!recognition) return null;
   const amount = recognition.amount;
@@ -856,8 +875,8 @@ function ManualInputScreenPremium({
   onBackspace: () => void;
   onReset: () => void;
   onBack: () => void;
-  onNavigate: (tab: 'home' | 'input' | 'settings') => void;
-  activeTab: 'home' | 'input' | 'settings';
+  onNavigate: (tab: 'home' | 'scan' | 'input' | 'settings') => void;
+  activeTab: 'home' | 'scan' | 'input' | 'settings';
 }) {
   const { height } = useWindowDimensions();
   const compact = height < 900;
@@ -918,8 +937,8 @@ function ExchangeRateScreenPremium({
   onRefresh: () => void;
   refreshing: boolean;
   onBack: () => void;
-  onNavigate: (tab: 'home' | 'input' | 'settings') => void;
-  activeTab: 'home' | 'input' | 'settings';
+  onNavigate: (tab: 'home' | 'scan' | 'input' | 'settings') => void;
+  activeTab: 'home' | 'scan' | 'input' | 'settings';
 }) {
   return (
     <SafeAreaView edges={['top']} style={styles.fullScreen}>
@@ -981,22 +1000,23 @@ function ShowAmountScreenPremium({
   country,
   amount,
   onBack,
+  onNavigate,
 }: {
   country: CountryDisplay;
   amount: number;
   onBack: () => void;
+  onNavigate: (tab: 'home' | 'scan' | 'input' | 'settings') => void;
 }) {
   return (
     <SafeAreaView edges={['top']} style={styles.fullScreen}>
-      <Pressable
-        onPress={onBack}
-        style={styles.showAmountBackButton}>
-        <Text style={styles.backArrow}>←</Text>
-      </Pressable>
-      <View style={styles.showAmountContainer}>
-        <Text style={styles.showAmountText}>
-          {new Intl.NumberFormat('ko-KR').format(amount)} {currencyLabel(country.currency)}
-        </Text>
+      <View style={styles.screenWithNav}>
+        <ScreenHeader title="금액" />
+        <Pressable onPress={onBack} style={styles.showAmountContainer}>
+          <Text style={styles.showAmountText}>
+            {new Intl.NumberFormat('ko-KR').format(amount)} {currencyLabel(country.currency)}
+          </Text>
+        </Pressable>
+        <BottomNavigationPremium activeTab="home" onTabChange={onNavigate} onScanPress={() => onNavigate('scan')} />
       </View>
     </SafeAreaView>
   );
@@ -1018,8 +1038,8 @@ function SettingsScreenPremium({
   onRatePress: () => void;
   onVoiceDiagnostics: () => void;
   onToggle: (key: 'vibrationOn' | 'largeResultText', value: boolean) => void;
-  onNavigate: (tab: 'home' | 'input' | 'settings') => void;
-  activeTab: 'home' | 'input' | 'settings';
+  onNavigate: (tab: 'home' | 'scan' | 'input' | 'settings') => void;
+  activeTab: 'home' | 'scan' | 'input' | 'settings';
 }) {
   const selectedCountry = COUNTRY_OPTIONS.find((c) => c.code === settings.selectedCountryCode);
 

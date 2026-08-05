@@ -30,11 +30,6 @@ export class ExchangeRateService {
 
     this.initializePromise = (async () => {
       await this.loadCachedRates();
-      try {
-        await this.refreshLiveRates();
-      } catch {
-        // Cached rates or fallback rates remain available when the network fails.
-      }
     })();
 
     return this.initializePromise;

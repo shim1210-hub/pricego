@@ -78,9 +78,10 @@ export function PriceGoApp() {
       if (!isMountedRef.current) return;
       setSettings(parsed);
       setScreen(parsed.selectedCountryCode ? 'home' : 'onboarding');
+      await refreshRates();
     };
 
-    loadSettings();
+    void loadSettings();
   }, []);
 
   useEffect(() => {
@@ -204,6 +205,7 @@ export function PriceGoApp() {
     setIsRefreshingRates(true);
     try {
       await exchangeRateService.refreshLiveRates();
+      if (!isMountedRef.current) return;
       setRateVersion((version) => version + 1);
       Alert.alert('환율이 업데이트됐어요.', '최신 환율을 확인했습니다.');
     } catch {

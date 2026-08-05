@@ -22,14 +22,13 @@ import { StatusChip } from '@/components/ui/StatusChip';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import { COLORS, SPACING, TYPOGRAPHY } from '@/constants/design';
 import { AppSettingsService, DEFAULT_APP_SETTINGS } from '@/services/app-settings.service';
-import { COUNTRY_BY_CODE, COUNTRY_OPTIONS, ExchangeRateService } from '@/services/exchange-rate.service';
+import { COUNTRY_BY_CODE, COUNTRY_OPTIONS, exchangeRateService } from '@/services/exchange-rate.service';
 import { PriceParserService } from '@/services/price-parser.service';
 import { recognizePriceFromImage } from '@/services/ocr.service';
 import { clearVoiceDiagnosticLogs, recordVoiceDiagnostic, SpeechRecognitionError, SpeechRecognitionService, subscribeVoiceDiagnostics, type VoiceDiagnostic } from '@/services/speech-recognition.service';
 import type { AppSettings, CurrencyCode, ExchangeRateSnapshot, SupportedCountryCode } from '@/services/types';
 
 const settingsService = new AppSettingsService();
-const exchangeRateService = new ExchangeRateService();
 const speechService = new SpeechRecognitionService();
 const parserService = new PriceParserService();
 const RECOGNITION_CHECK_THRESHOLD = 300 * 1000;
@@ -61,7 +60,7 @@ export function PriceGoApp() {
   const [showVoiceDiagnostics, setShowVoiceDiagnostics] = useState(false);
   const [rateVersion, setRateVersion] = useState(0);
   const [isRefreshingRates, setIsRefreshingRates] = useState(false);
-  const [ocrResult, setOcrResult] = useState<{ amount: number; rawText: string } | null>(null);
+  const [ocrResult, setOcrResult] = useState<{ amount: number; rawText: string; currency: CurrencyCode } | null>(null);
   const isMountedRef = useRef(true);
   const listeningRef = useRef(false);
 
@@ -180,7 +179,7 @@ export function PriceGoApp() {
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
     if (result.canceled) return;
     try {
-      setOcrResult(await recognizePriceFromImage(result.assets[0].uri));
+      setOcrResult(await recognizePriceFromImage(result.assets[0].uri, settings.selectedCountryCode, source === 'library' ? 'gallery' : 'camera'));
     } catch {
       Alert.alert('금액을 찾을 수 없습니다.', '가격이 잘 보이는 사진을 다시 선택해주세요.');
     }
@@ -258,7 +257,7 @@ export function PriceGoApp() {
             onCountrySelect={handleCountrySelect}
             onMicPress={startListening}
             onOcrPress={startOcr}
-            onScanPress={() => setScreen('scan')}
+            onScanPress={() => { setActiveTab('scan'); setScreen('scan'); }}
             ocrResult={ocrResult}
             onNavigate={(tab) => {
               setActiveTab(tab);
@@ -557,7 +556,7 @@ function HomeScreenPremium({
   onMicPress: () => void;
   onOcrPress: () => void;
   onScanPress: () => void;
-  ocrResult: { amount: number; rawText: string } | null;
+  ocrResult: { amount: number; rawText: string; currency: CurrencyCode } | null;
   onNavigate: (tab: 'home' | 'scan' | 'input' | 'settings') => void;
   activeTab: 'home' | 'scan' | 'input' | 'settings';
 }) {
@@ -616,8 +615,8 @@ function HomeScreenPremium({
           {ocrResult && (
             <Card variant="elevated" style={styles.ocrResultCard}>
               <Text style={styles.ocrResultLabel}>사진에서 인식한 금액</Text>
-              <Text style={styles.ocrResultAmount}>{new Intl.NumberFormat('ko-KR').format(ocrResult.amount)} {country.currency}</Text>
-              <Text style={styles.ocrResultKrw}>{exchangeRateService.formatKrw(exchangeRateService.calculateKrw(ocrResult.amount, country.currency))}</Text>
+              <Text style={styles.ocrResultAmount}>{new Intl.NumberFormat('ko-KR').format(ocrResult.amount)} {ocrResult.currency}</Text>
+              <Text style={styles.ocrResultKrw}>{exchangeRateService.formatKrw(exchangeRateService.calculateKrw(ocrResult.amount, ocrResult.currency))}</Text>
             </Card>
           )}
 
@@ -672,7 +671,7 @@ function ListeningScreenPremium({
           </View>
         </ScrollView>
 
-        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('home')} />
+        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('scan')} />
       </View>
     </SafeAreaView>
   );
@@ -774,7 +773,7 @@ function ResultScreenPremium({
           </View>
         </ScrollView>
 
-        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('home')} />
+        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('scan')} />
       </View>
     </SafeAreaView>
   );
@@ -847,7 +846,7 @@ function RecognitionCheckScreenPremium({
           />
         </ScrollView>
 
-        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('home')} />
+        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('scan')} />
       </View>
     </SafeAreaView>
   );
@@ -917,7 +916,7 @@ function ManualInputScreenPremium({
           />
         </ScrollView>
 
-        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('home')} />
+        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('scan')} />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -990,7 +989,7 @@ function ExchangeRateScreenPremium({
           />
         </ScrollView>
 
-        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('home')} />
+        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('scan')} />
       </View>
     </SafeAreaView>
   );
@@ -1117,7 +1116,7 @@ function SettingsScreenPremium({
           </View>
         </ScrollView>
 
-        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('home')} />
+        <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('scan')} />
       </View>
     </SafeAreaView>
   );

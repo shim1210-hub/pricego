@@ -47,6 +47,7 @@ type ScreenName =
   | 'exchange-rate'
   | 'show-amount'
   | 'settings'
+  | 'about'
   | 'scan';
 
 export function PriceGoApp() {
@@ -84,15 +85,13 @@ export function PriceGoApp() {
     void loadSettings();
   }, []);
 
-  useEffect(() => {
-    if (screen === 'manual-input') {
-      setActiveTab('input');
-    } else if (screen === 'settings' || screen === 'exchange-rate') {
-      setActiveTab('settings');
-    } else if (screen === 'home' || screen === 'listening' || screen === 'result' || screen === 'recognition-check') {
-      setActiveTab('home');
-    }
-  }, [screen]);
+  const navigate = (tab: 'home' | 'scan' | 'input' | 'settings') => {
+    setActiveTab(tab);
+    if (tab === 'scan') return setScreen('scan');
+    if (tab === 'input') return setScreen('manual-input');
+    if (tab === 'settings') return setScreen('settings');
+    setScreen('home');
+  };
 
   const country = COUNTRY_BY_CODE[settings.selectedCountryCode] ?? COUNTRY_BY_CODE.VN;
   const exchangeRate = useMemo(() => exchangeRateService.getRate(country.currency), [country.currency, rateVersion]);
@@ -259,11 +258,13 @@ export function PriceGoApp() {
             onCountrySelect={handleCountrySelect}
             onMicPress={startListening}
             onOcrPress={startOcr}
-            onScanPress={() => { setActiveTab('scan'); setScreen('scan'); }}
+            onScanPress={() => navigate('scan')}
             ocrResult={ocrResult}
             onNavigate={(tab) => {
               setActiveTab(tab);
-              if (tab === 'input') {
+              if (tab === 'scan') {
+                setScreen('scan');
+              } else if (tab === 'input') {
                 setScreen('manual-input');
               } else if (tab === 'settings') {
                 setScreen('settings');
@@ -299,7 +300,9 @@ export function PriceGoApp() {
             }}
             onNavigate={(tab) => {
               setActiveTab(tab);
-              if (tab === 'input') {
+              if (tab === 'scan') {
+                setScreen('scan');
+              } else if (tab === 'input') {
                 setScreen('manual-input');
               } else if (tab === 'settings') {
                 setScreen('settings');
@@ -322,7 +325,9 @@ export function PriceGoApp() {
             onManual={() => setScreen('manual-input')}
             onNavigate={(tab) => {
               setActiveTab(tab);
-              if (tab === 'input') {
+              if (tab === 'scan') {
+                setScreen('scan');
+              } else if (tab === 'input') {
                 setScreen('manual-input');
               } else if (tab === 'settings') {
                 setScreen('settings');
@@ -343,7 +348,9 @@ export function PriceGoApp() {
             onManual={() => setScreen('manual-input')}
             onNavigate={(tab) => {
               setActiveTab(tab);
-              if (tab === 'input') {
+              if (tab === 'scan') {
+                setScreen('scan');
+              } else if (tab === 'input') {
                 setScreen('manual-input');
               } else if (tab === 'settings') {
                 setScreen('settings');
@@ -368,7 +375,9 @@ export function PriceGoApp() {
             onBack={() => setScreen('home')}
             onNavigate={(tab) => {
               setActiveTab(tab);
-              if (tab === 'input') {
+              if (tab === 'scan') {
+                setScreen('scan');
+              } else if (tab === 'input') {
                 setScreen('manual-input');
               } else if (tab === 'settings') {
                 setScreen('settings');
@@ -389,7 +398,9 @@ export function PriceGoApp() {
             onBack={() => setScreen('settings')}
             onNavigate={(tab) => {
               setActiveTab(tab);
-              if (tab === 'input') {
+              if (tab === 'scan') {
+                setScreen('scan');
+              } else if (tab === 'input') {
                 setScreen('manual-input');
               } else if (tab === 'settings') {
                 setScreen('settings');
@@ -422,6 +433,7 @@ export function PriceGoApp() {
             onBack={() => setScreen('home')}
             onCountryPress={() => setScreen('country-select')}
             onRatePress={() => setScreen('exchange-rate')}
+            onAboutPress={() => setScreen('about')}
             onVoiceDiagnostics={() => setShowVoiceDiagnostics(true)}
             onToggle={(key, value) => {
               const next = { ...settings, [key]: value } as AppSettings;
@@ -429,7 +441,9 @@ export function PriceGoApp() {
             }}
             onNavigate={(tab) => {
               setActiveTab(tab);
-              if (tab === 'input') {
+              if (tab === 'scan') {
+                setScreen('scan');
+              } else if (tab === 'input') {
                 setScreen('manual-input');
               } else if (tab === 'settings') {
                 setScreen('settings');
@@ -440,6 +454,8 @@ export function PriceGoApp() {
             activeTab={activeTab}
           />
         );
+      case 'about':
+        return <AboutScreenPremium onBack={() => setScreen('settings')} />;
       default:
         return null;
     }
@@ -571,7 +587,7 @@ function HomeScreenPremium({
     <SafeAreaView edges={['top']} style={styles.fullScreen}>
       <View style={styles.screenWithNav}>
         <ScreenHeader
-          title="PriceGo v1.0"
+          title="환율 계산"
           rightIcon="⚙"
           onRightPress={() => onNavigate('settings')}
         />
@@ -594,6 +610,8 @@ function HomeScreenPremium({
 
           <View style={styles.homeCenterContent}>
             <MicButtonPremium onPress={onMicPress} size={micSize} />
+            <Text style={[styles.micPromptTitle, compact && styles.compactMicPromptTitle]}>금액을 말해보세요.</Text>
+            <Text style={[styles.micPromptDesc, compact && styles.compactMicPromptDesc]}>예) 30만동 · 5달러 · 100엔</Text>
             <Text style={[styles.micPromptTitle, compact && styles.compactMicPromptTitle]}>가격을 들어볼게요</Text>
             <Text style={[styles.micPromptDesc, compact && styles.compactMicPromptDesc]}>
               버튼을 누르고{'\n'}상대방이 말하는 가격을 들려주세요.
@@ -884,7 +902,7 @@ function ManualInputScreenPremium({
   return (
     <SafeAreaView edges={['top']} style={styles.fullScreen}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.screenWithNav}>
-        <ScreenHeader title="" showBack onBackPress={onBack} />
+        <ScreenHeader title="직접 입력" showBack onBackPress={onBack} />
 
         <ScrollView
           contentContainerStyle={[styles.pagePadding, compact && styles.compactPagePadding]}
@@ -1028,6 +1046,7 @@ function SettingsScreenPremium({
   onBack,
   onCountryPress,
   onRatePress,
+  onAboutPress,
   onVoiceDiagnostics,
   onToggle,
   onNavigate,
@@ -1037,6 +1056,7 @@ function SettingsScreenPremium({
   onBack: () => void;
   onCountryPress: () => void;
   onRatePress: () => void;
+  onAboutPress: () => void;
   onVoiceDiagnostics: () => void;
   onToggle: (key: 'vibrationOn' | 'largeResultText', value: boolean) => void;
   onNavigate: (tab: 'home' | 'scan' | 'input' | 'settings') => void;
@@ -1103,22 +1123,29 @@ function SettingsScreenPremium({
           </View>
 
           <View style={styles.settingsSection}>
-            <SettingRow
-              title="정보 / 버전"
-              value={
-                <View style={styles.aboutInfo}>
-                  <Text style={styles.aboutServiceVersion}>PriceGo v1.0</Text>
-                  <Text style={styles.aboutLabel}>Version</Text>
-                  <Text style={styles.aboutValue}>{Constants.expoConfig?.version ?? '1.0.1'}</Text>
-                  <Text style={styles.aboutValue}>개발{`\n`}NexDataForge</Text>
-                  <Text style={styles.aboutCopyright}>© 2026 NexDataForge</Text>
-                </View>
-              }
-            />
+            <SettingRow title="정보 / 버전" value="›" onPress={onAboutPress} showChevron />
           </View>
         </ScrollView>
 
         <BottomNavigationPremium activeTab={activeTab} onTabChange={onNavigate} onScanPress={() => onNavigate('scan')} />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function AboutScreenPremium({ onBack }: { onBack: () => void }) {
+  return (
+    <SafeAreaView edges={['top']} style={styles.fullScreen}>
+      <View style={styles.screenWithNav}>
+        <ScreenHeader title="정보 / 버전" showBack onBackPress={onBack} />
+        <ScrollView contentContainerStyle={styles.pagePadding}>
+          <Card variant="elevated" style={styles.aboutCard}>
+            <Text style={styles.aboutServiceVersion}>PriceGo v1.0</Text>
+            <Text style={styles.aboutLabel}>Version 1.0.0</Text>
+            <Text style={styles.aboutValue}>Developed by{`\n`}NexDataForge</Text>
+            <Text style={styles.aboutCopyright}>© 2026 NexDataForge</Text>
+          </Card>
+        </ScrollView>
       </View>
     </SafeAreaView>
   );
@@ -1541,6 +1568,10 @@ const styles = StyleSheet.create({
   },
   aboutInfo: {
     alignItems: 'flex-end',
+  },
+  aboutCard: {
+    padding: SPACING.xl,
+    gap: SPACING.md,
   },
   aboutServiceVersion: {
     ...TYPOGRAPHY.bodySmall,

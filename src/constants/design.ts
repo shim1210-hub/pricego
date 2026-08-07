@@ -51,7 +51,7 @@ export const RADIUS = {
 
 export const TYPOGRAPHY = {
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '700' as const,
     lineHeight: 32,
   },
@@ -66,7 +66,7 @@ export const TYPOGRAPHY = {
     lineHeight: 24,
   },
   body: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '500' as const,
     lineHeight: 24,
   },
@@ -81,7 +81,7 @@ export const TYPOGRAPHY = {
     lineHeight: 20,
   },
   caption: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '500' as const,
     lineHeight: 18,
   },
@@ -132,5 +132,32 @@ export const SIZES = {
   iconButtonSize: 44,
   micButtonSize: 170,
   tabBarHeight: 72,
-  headerHeight: 52,
+  headerHeight: 60,
+  cardRadius: 20,
+  screenPadding: 20,
+} as const;
+
+export const PRICE_GO_THEME = {
+  color: {
+    backgroundPage: COLORS.background,
+    backgroundSurface: COLORS.surface,
+    backgroundSubtle: COLORS.surfaceAlt,
+    textPrimary: COLORS.textPrimary,
+    textSecondary: COLORS.textSecondary,
+    textMuted: COLORS.textTertiary,
+    borderDefault: COLORS.border,
+    actionPrimary: COLORS.primary,
+    actionPrimaryPressed: COLORS.primaryDark,
+    focus: COLORS.primary,
+  },
+  spacing: SPACING,
+  radius: RADIUS,
+  typography: TYPOGRAPHY,
+  size: {
+    touchTargetMin: 48,
+    settingRowMinHeight: 64,
+    headerHeight: SIZES.headerHeight,
+    contentMaxWidth: 640,
+  },
+  shadow: { surface: SHADOWS.sm },
 } as const;

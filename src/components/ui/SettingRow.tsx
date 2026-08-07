@@ -1,5 +1,6 @@
-import { COLORS, SPACING, TYPOGRAPHY } from '@/constants/design';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { PRICE_GO_THEME } from '@/constants/design';
 
 interface SettingRowProps {
   icon?: string;
@@ -8,6 +9,7 @@ interface SettingRowProps {
   value?: string | React.ReactNode;
   onPress?: () => void;
   showChevron?: boolean;
+  accessibilityLabel?: string;
 }
 
 export function SettingRow({
@@ -17,11 +19,16 @@ export function SettingRow({
   value,
   onPress,
   showChevron = false,
+  accessibilityLabel,
 }: SettingRowProps) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.container, pressed && styles.pressed]}>
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole={onPress ? 'button' : undefined}
+      onPress={onPress}
+      style={({ pressed }) => [styles.container, pressed && styles.pressed]}>
       <View style={styles.left}>
-        {icon && <Text style={styles.icon}>{icon}</Text>}
+        {icon && <Text accessible={false} style={styles.icon}>{icon}</Text>}
         <View style={styles.textSection}>
           <Text style={styles.title}>{title}</Text>
           {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
@@ -30,58 +37,53 @@ export function SettingRow({
 
       <View style={styles.right}>
         {typeof value === 'string' ? <Text style={styles.value}>{value}</Text> : value}
-        {showChevron && <Text style={styles.chevron}>›</Text>}
+        {showChevron && <Text accessible={false} style={styles.chevron}>›</Text>}
       </View>
     </Pressable>
   );
 }
 
+const theme = PRICE_GO_THEME;
 const styles = StyleSheet.create({
   container: {
+    minHeight: theme.size.settingRowMinHeight,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.lg,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: theme.color.borderDefault,
   },
-  pressed: {
-    backgroundColor: COLORS.surfaceAlt,
-  },
+  pressed: { backgroundColor: theme.color.backgroundSubtle },
   left: {
     flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
+    gap: theme.spacing.md,
   },
-  icon: {
-    fontSize: 24,
-  },
-  textSection: {
-    flex: 1,
-  },
-  title: {
-    ...TYPOGRAPHY.body,
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.xs,
-  },
+  icon: { fontSize: 24 },
+  textSection: { flex: 1, minWidth: 0 },
+  title: { ...theme.typography.body, color: theme.color.textPrimary },
   subtitle: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textSecondary,
+    ...theme.typography.caption,
+    marginTop: theme.spacing.xs,
+    color: theme.color.textSecondary,
   },
   right: {
     maxWidth: '46%',
-    alignItems: 'flex-end',
-    gap: SPACING.sm,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: theme.spacing.sm,
   },
   value: {
-    ...TYPOGRAPHY.bodySmall,
-    color: COLORS.textSecondary,
+    ...theme.typography.bodySmall,
+    flexShrink: 1,
+    color: theme.color.textSecondary,
     textAlign: 'right',
   },
-  chevron: {
-    fontSize: 24,
-    color: COLORS.textSecondary,
-  },
+  chevron: { fontSize: 24, color: theme.color.textSecondary },
 });

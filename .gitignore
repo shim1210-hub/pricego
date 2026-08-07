@@ -2,6 +2,8 @@
 
 # dependencies
 node_modules/
+.edge-capture/
+expo-serve*.log
 
 # Expo
 .expo/
@@ -44,3 +46,4 @@ example
 
 # KimPM generated runtime status
 .kimpm-status
+.ui-capture-profile/

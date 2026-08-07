@@ -1,4 +1,4 @@
-import { COLORS, RADIUS, SHADOWS, SPACING } from '@/constants/design';
+import { COLORS, SHADOWS, SIZES, SPACING } from '@/constants/design';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 interface CardProps {
@@ -24,9 +24,11 @@ export function Card({ children, variant = 'outlined', style }: CardProps) {
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: RADIUS.lg,
+    borderRadius: SIZES.cardRadius,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
   },
   elevated: {
     backgroundColor: COLORS.surface,
@@ -34,7 +36,6 @@ const styles = StyleSheet.create({
   },
   outlined: {
     backgroundColor: COLORS.surface,
-    borderWidth: 1,
     borderColor: COLORS.border,
   },
   filled: {

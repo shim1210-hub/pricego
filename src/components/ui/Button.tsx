@@ -20,25 +20,27 @@ export function Button({
   icon,
   style,
 }: ButtonProps) {
-  const buttonHeight = size === 'large' ? SIZES.buttonHeight : size === 'medium' ? 44 : 36;
+  const buttonHeight = size === 'large' ? SIZES.buttonHeight : 48;
 
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
         styles.base,
-        { height: buttonHeight },
+        { minHeight: buttonHeight },
         variant === 'primary' && styles.primary,
         variant === 'secondary' && styles.secondary,
         variant === 'outline' && styles.outline,
         variant === 'ghost' && styles.ghost,
         disabled && styles.disabled,
-        pressed && !disabled && { opacity: 0.8 },
+        pressed && !disabled && styles.pressed,
         style,
       ]}>
       <View style={styles.content}>
-        {icon && <Text style={styles.icon}>{icon}</Text>}
+        {icon && <Text accessible={false} style={styles.icon}>{icon}</Text>}
         <Text
           style={[
             styles.label,
@@ -59,6 +61,8 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
   },
   primary: {
     backgroundColor: COLORS.primary,
@@ -78,17 +82,25 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.disabledBg,
     opacity: 0.6,
   },
+  pressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.985 }],
+  },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
     gap: SPACING.sm,
   },
   icon: {
     fontSize: 18,
   },
   label: {
+    flexShrink: 1,
     fontWeight: '700' as const,
     color: COLORS.textPrimary,
+    textAlign: 'center',
   },
   labelLarge: {
     fontSize: 16,

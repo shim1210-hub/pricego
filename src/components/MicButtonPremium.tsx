@@ -9,7 +9,13 @@ interface MicButtonProps {
 
 export function MicButtonPremium({ listening = false, onPress, size = SIZES.micButtonSize }: MicButtonProps) {
   return (
-    <Pressable onPress={onPress} style={styles.wrapper}>
+    <Pressable
+      accessibilityHint={listening ? '음성 듣기를 중지합니다' : '음성으로 금액과 통화를 말합니다'}
+      accessibilityLabel={listening ? '음성 듣기 중, 누르면 중지' : '음성으로 금액 말하기'}
+      accessibilityRole="button"
+      accessibilityState={{ busy: listening }}
+      onPress={onPress}
+      style={styles.wrapper}>
       {/* Outer Ring */}
       <View
         style={[
@@ -35,7 +41,7 @@ export function MicButtonPremium({ listening = false, onPress, size = SIZES.micB
           },
           listening && styles.listeningButton,
         ]}>
-        <Text style={styles.icon}>🎤</Text>
+        <Text accessible={false} style={styles.icon}>🎤</Text>
       </View>
     </Pressable>
   );
